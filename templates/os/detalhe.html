@@ -129,8 +129,9 @@
             <button class="btn btn-sm btn-outline-secondary text-nowrap">
               <i class="bi bi-person-check me-1"></i>Atribuir</button>
           </form>
-          <a href="{{ url_for('sol.nova', os_id=o.id) }}" class="btn btn-sm btn-outline-primary text-nowrap">
-            <i class="bi bi-cart-plus me-1"></i>Solicitar material</a>
+          <a href="{{ url_for('sol.nova', os_id=o.id) }}" class="btn btn-sm btn-outline-primary text-nowrap"
+             title="Para peças com especificação, link de fornecedor ou pedido de cadastro">
+            <i class="bi bi-file-earmark-text me-1"></i>Solicitação detalhada</a>
         </div>
         {% endif %}
       </div>
@@ -179,7 +180,8 @@
               <td>{{ m.descricao }}</td>
               <td class="text-end">{{ m.quantidade|num(0) }}</td>
               <td><span class="pill">{{ m.origem }}</span></td>
-              <td>{% if m.baixado %}<i class="bi bi-check-circle-fill text-success"></i>
+              <td>{% if m.baixado %}
+                    <span class="pill text-success"><i class="bi bi-check-circle-fill"></i> baixado</span>
                   {% else %}<span class="text-mudo">—</span>{% endif %}</td>
               {% if pode('os_executar') %}
               <td class="text-end">
@@ -198,28 +200,43 @@
       </div>
       {% if pode('os_executar') and o.status not in ('concluida','cancelada') %}
       <div class="card-footer bg-white">
+        <div class="fw-bold mb-2" style="font-size:.78rem;text-transform:uppercase;color:#8B94A3">
+          <i class="bi bi-cart-plus me-1"></i> Pedir peça
+        </div>
         <form method="post" action="{{ url_for('os.add_material', os_id=o.id) }}" class="row g-2 align-items-end">
           <div class="col-md-3">
             <label class="form-label mb-1">Código</label>
-            <input name="codigo" class="form-control form-control-sm" id="matCodigo" autocomplete="off">
+            <input name="codigo" class="form-control form-control-sm" id="matCodigo"
+                   autocomplete="off" placeholder="Escaneie ou digite">
           </div>
-          <div class="col-md-4">
-            <label class="form-label mb-1">Descrição</label>
-            <input name="descricao" class="form-control form-control-sm" id="matDesc">
+          <div class="col-md-5">
+            <label class="form-label mb-1">Descrição da peça</label>
+            <input name="descricao" class="form-control form-control-sm" id="matDesc"
+                   placeholder="Preencha se não houver código">
           </div>
           <div class="col-md-2">
             <label class="form-label mb-1">Qtd</label>
-            <input name="quantidade" type="number" step="0.001" value="1" class="form-control form-control-sm">
+            <input name="quantidade" type="number" step="0.001" min="0.001" value="1"
+                   class="form-control form-control-sm" id="matQtd" required>
           </div>
-          <div class="col-md-3 d-flex gap-2 align-items-center">
-            <div class="form-check mb-0">
-              <input class="form-check-input" type="checkbox" name="baixar" id="baixar" checked>
-              <label class="form-check-label small" for="baixar">Dar baixa</label>
+          <div class="col-md-2">
+            <button class="btn btn-sm btn-decio w-100">
+              <i class="bi bi-box-arrow-in-down me-1"></i>Pedir</button>
+          </div>
+          <div class="col-12">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="pausar" id="pausar" value="1" checked>
+              <label class="form-check-label small" for="pausar">
+                Se não houver saldo, pausar a OS aguardando a peça</label>
             </div>
-            <button class="btn btn-sm btn-decio flex-grow-1"><i class="bi bi-plus-lg"></i></button>
           </div>
-          <div class="col-12"><small class="text-mudo" id="matInfo"></small></div>
+          <div class="col-12"><div id="matInfo"></div></div>
         </form>
+        <small class="text-mudo d-block mt-2">
+          <i class="bi bi-info-circle me-1"></i>
+          Se houver saldo no depósito NLAG a baixa é feita na hora. Se não houver,
+          o sistema abre automaticamente uma solicitação para o analista de materiais.
+        </small>
       </div>
       {% endif %}
     </div>
@@ -394,24 +411,52 @@ function tick() {
 document.getElementById('crono') && (document.getElementById('crono').textContent = '00:00:00');
 {% endif %}
 
-// ── Busca de material por código ──
+// ── Disponibilidade da peça ao informar o código ──
 const mc = document.getElementById('matCodigo');
+const mq = document.getElementById('matQtd');
+
+function conferirPeca() {
+  const c = mc.value.trim();
+  const info = document.getElementById('matInfo');
+  if (!c) { info.innerHTML = ''; return; }
+  fetch(`{{ url_for('mat.api_material', codigo='__C__') }}`.replace('__C__', encodeURIComponent(c)))
+    .then(r => r.json())
+    .then(d => {
+      if (!d.ok) {
+        info.innerHTML = '<div class="alert alert-warning py-2 mb-0" style="font-size:.83rem">' +
+          '<i class="bi bi-exclamation-triangle-fill me-1"></i>Peça sem cadastro — ' +
+          'vai gerar uma solicitação de cadastro para o analista de materiais.</div>';
+        return;
+      }
+      if (!document.getElementById('matDesc').value) {
+        document.getElementById('matDesc').value = d.descricao;
+      }
+      const q = parseFloat(mq.value || 1);
+      if (d.tipo !== 'NLAG') {
+        info.innerHTML = `<div class="alert alert-info py-2 mb-0" style="font-size:.83rem">
+          <i class="bi bi-info-circle-fill me-1"></i><strong>${d.descricao}</strong> —
+          depósito ${d.tipo}, saldo do SAP ${d.saldo} ${d.unidade}.
+          Vai gerar solicitação para o analista.</div>`;
+      } else if (d.saldo >= q) {
+        info.innerHTML = `<div class="alert alert-success py-2 mb-0" style="font-size:.83rem">
+          <i class="bi bi-check-circle-fill me-1"></i><strong>${d.descricao}</strong> —
+          disponível no NLAG (${d.saldo} ${d.unidade}). A baixa será feita na hora.</div>`;
+      } else if (d.saldo > 0) {
+        info.innerHTML = `<div class="alert alert-warning py-2 mb-0" style="font-size:.83rem">
+          <i class="bi bi-exclamation-triangle-fill me-1"></i><strong>${d.descricao}</strong> —
+          só há ${d.saldo} ${d.unidade} no NLAG. Serão baixados ${d.saldo} e
+          solicitados ${(q - d.saldo).toFixed(0)} ao analista.</div>`;
+      } else {
+        info.innerHTML = `<div class="alert alert-danger py-2 mb-0" style="font-size:.83rem">
+          <i class="bi bi-x-circle-fill me-1"></i><strong>${d.descricao}</strong> —
+          sem saldo no NLAG. Vai gerar solicitação para o analista de materiais.</div>`;
+      }
+    });
+}
 if (mc) {
-  mc.addEventListener('blur', () => {
-    const c = mc.value.trim();
-    if (!c) return;
-    fetch(`{{ url_for('mat.api_material', codigo='__C__') }}`.replace('__C__', encodeURIComponent(c)))
-      .then(r => r.json())
-      .then(d => {
-        const info = document.getElementById('matInfo');
-        if (d.ok) {
-          document.getElementById('matDesc').value = d.descricao;
-          info.innerHTML = `<i class="bi bi-info-circle"></i> ${d.descricao} — saldo <strong>${d.saldo}</strong> ${d.unidade} (${d.tipo})`;
-        } else {
-          info.innerHTML = '<span class="text-warning"><i class="bi bi-exclamation-triangle"></i> Código não cadastrado — será registrado como material externo.</span>';
-        }
-      });
-  });
+  mc.addEventListener('blur', conferirPeca);
+  mc.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); conferirPeca(); }});
+  mq && mq.addEventListener('change', () => { if (mc.value.trim()) conferirPeca(); });
 }
 </script>
 {% endblock %}

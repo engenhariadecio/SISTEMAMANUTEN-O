@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block titulo %}Relatórios{% endblock %}
+{% block cabecalho %}Central de Relatórios{% endblock %}
+{% block titulo_mob %}Relatórios{% endblock %}
+
+{% macro relatorio(rota, icone, cor, titulo, descricao, abas, com_periodo=True, com_ano=False) %}
+<div class="col-md-6 col-xl-4">
+  <div class="card h-100">
+    <div class="card-body d-flex flex-column">
+      <div class="d-flex align-items-start gap-3 mb-2">
+        <div class="icone {{ cor }}" style="width:42px;height:42px;border-radius:11px;
+             display:flex;align-items:center;justify-content:center;flex:none">
+          <i class="bi bi-{{ icone }}"></i></div>
+        <div>
+          <div class="fw-bold" style="font-size:.95rem">{{ titulo }}</div>
+          <small class="text-mudo">{{ abas }}</small>
+        </div>
+      </div>
+      <p class="text-mudo mb-3" style="font-size:.83rem">{{ descricao }}</p>
+      <a class="btn btn-sm btn-decio mt-auto"
+         href="{{ url_for(rota) }}{% if com_periodo %}?ini={{ ini }}&fim={{ fim }}{% elif com_ano %}?ano={{ ano }}{% endif %}"
+         {% if com_periodo %}data-periodo="{{ url_for(rota) }}"{% endif %}
+         {% if com_ano %}data-ano="{{ url_for(rota) }}"{% endif %}>
+        <i class="bi bi-file-earmark-excel-fill me-1"></i> Baixar Excel</a>
+    </div>
+  </div>
+</div>
+{% endmacro %}
+
+{% block conteudo %}
+{% set ano = ini[:4]|int %}
+
+<div class="card mb-3">
+  <div class="card-body py-3">
+    <div class="row g-2 align-items-end">
+      <div class="col-auto">
+        <label class="form-label mb-1">Período dos relatórios</label>
+        <div class="input-group input-group-sm" style="width:300px">
+          <input type="date" id="ini" value="{{ ini }}" class="form-control">
+          <span class="input-group-text">até</span>
+          <input type="date" id="fim" value="{{ fim }}" class="form-control">
+        </div>
+      </div>
+      <div class="col-auto">
+        <label class="form-label mb-1">Atalhos</label>
+        <div class="btn-group btn-group-sm d-block">
+          <button class="btn btn-outline-secondary" data-dias="30">30 dias</button>
+          <button class="btn btn-outline-secondary" data-dias="90">90 dias</button>
+          <button class="btn btn-outline-secondary" data-dias="180">6 meses</button>
+          <button class="btn btn-outline-secondary" data-dias="365">1 ano</button>
+          <button class="btn btn-outline-secondary" data-ano-atual="1">Ano corrente</button>
+        </div>
+      </div>
+      <div class="col-auto">
+        <label class="form-label mb-1">Ano (preventivas)</label>
+        <input type="number" id="anoRef" value="{{ ano }}" class="form-control form-control-sm"
+               style="width:110px">
+      </div>
+      <div class="col-auto ms-auto text-mudo" style="font-size:.82rem">
+        <i class="bi bi-database me-1"></i>
+        {{ contagens.os }} OS · {{ contagens.om }} OMs · {{ contagens.mov }} movimentações ·
+        {{ contagens.sm }} solicitações
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="secao-titulo mb-2"><i class="bi bi-wrench-adjustable"></i> Corretivas</div>
+<div class="row g-3 mb-4">
+  {{ relatorio('rel.rel_os', 'list-task', 'i-azul', 'Ordens de serviço',
+     'Todas as OS do período com equipamento, criticidade, defeito, causa, tempos e custos.',
+     '3 abas · dados, resumo por situação e por equipamento') }}
+  {{ relatorio('rel.rel_apontamentos', 'clock-history', 'i-info', 'Apontamentos e tempos',
+     'Linha do tempo de cada OS e todos os intervalos de trabalho, pausa, almoço e espera por peça.',
+     '2 abas · apontamentos e tempos') }}
+</div>
+
+<div class="secao-titulo mb-2"><i class="bi bi-calendar3-week"></i> Preventivas</div>
+<div class="row g-3 mb-4">
+  {{ relatorio('rel.rel_preventivas', 'clipboard2-check-fill', 'i-verde', 'Preventivas',
+     'Ordens de manutenção, programação das 52 semanas, previsto x realizado e desempenho por responsável.',
+     '4 abas', com_periodo=False, com_ano=True) }}
+  {{ relatorio('rel.rel_checklists', 'card-checklist', 'i-verde', 'Respostas dos check lists',
+     'Item a item de cada preventiva executada, com observações e as OS geradas por pendência.',
+     '1 aba', com_periodo=False, com_ano=True) }}
+  {{ relatorio('rel.rel_rondas', 'signpost-split-fill', 'i-amb', 'Rondas de inspeção',
+     'Todos os pontos verificados por ronda, com respostas, observações e OS geradas.',
+     '1 aba') }}
+</div>
+
+<div class="secao-titulo mb-2"><i class="bi bi-boxes"></i> Materiais</div>
+<div class="row g-3 mb-4">
+  {{ relatorio('rel.rel_materiais', 'boxes', 'i-azul', 'Materiais e estoque',
+     'Saldo NLAG e HIBE/ERSA, movimentações do período e a lista de compra dos itens abaixo do mínimo.',
+     '3 abas · saldo, movimentações e alertas') }}
+  {{ relatorio('rel.rel_solicitacoes', 'cart-check-fill', 'i-info', 'Solicitações de material',
+     'Todo o acompanhamento: ficha, ID 4MDG, PR, código final, datas e dias em aberto.',
+     '2 abas · solicitações e histórico') }}
+  {{ relatorio('prev.plano_materiais_exportar', 'box-seam-fill', 'i-amb', 'Plano de materiais',
+     'Necessidade das preventivas futuras cruzada com o saldo (arquivo CSV).',
+     'CSV · use o horizonte em dias na tela do plano', com_periodo=False) }}
+</div>
+
+<div class="secao-titulo mb-2"><i class="bi bi-graph-up-arrow"></i> Gestão</div>
+<div class="row g-3 mb-4">
+  {{ relatorio('rel.rel_indicadores', 'speedometer2', 'i-verde', 'Indicadores',
+     'MTBF, MTTR, disponibilidade e custos por equipamento, produtividade por manutentor e ranking de causas.',
+     '3 abas') }}
+  {{ relatorio('rel.rel_equipamentos', 'cpu-fill', 'i-cinza', 'Equipamentos',
+     'Inventário completo, matriz de criticidade preenchida e os níveis configurados.',
+     '3 abas', com_periodo=False) }}
+  {{ relatorio('rel.rel_terceiros', 'truck', 'i-cinza', 'Manutenção em terceiros',
+     'Envios, empresas, serviços, retornos e valores.',
+     '1 aba', com_periodo=False) }}
+  {% if pode('admin') %}
+  {{ relatorio('rel.rel_usuarios', 'people-fill', 'i-verm', 'Usuários e auditoria',
+     'Cadastro de usuários, perfis, último acesso e o log completo de auditoria.',
+     '2 abas', com_periodo=False) }}
+  {% endif %}
+</div>
+
+{% if pode('backup') %}
+<div class="card">
+  <div class="card-body d-flex flex-wrap align-items-center gap-3">
+    <i class="bi bi-shield-fill-check fs-2 text-success"></i>
+    <div class="flex-grow-1">
+      <div class="fw-bold">Backup completo da base</div>
+      <small class="text-mudo">Todas as tabelas do sistema em um único arquivo,
+        para guardar fora do Railway.</small>
+    </div>
+    <a href="{{ url_for('rel.backup') }}" class="btn btn-outline-success">
+      <i class="bi bi-download me-1"></i> Ir para backup</a>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block js %}
+<script>
+const ini = document.getElementById('ini');
+const fim = document.getElementById('fim');
+const anoRef = document.getElementById('anoRef');
+
+function atualizarLinks() {
+  document.querySelectorAll('[data-periodo]').forEach(a => {
+    a.href = `${a.dataset.periodo}?ini=${ini.value}&fim=${fim.value}`;
+  });
+  document.querySelectorAll('[data-ano]').forEach(a => {
+    a.href = `${a.dataset.ano}?ano=${anoRef.value}`;
+  });
+}
+[ini, fim, anoRef].forEach(el => el.addEventListener('change', atualizarLinks));
+
+document.querySelectorAll('[data-dias]').forEach(b => b.addEventListener('click', () => {
+  const hoje = new Date();
+  const antes = new Date(hoje.getTime() - b.dataset.dias * 86400000);
+  fim.value = hoje.toISOString().slice(0, 10);
+  ini.value = antes.toISOString().slice(0, 10);
+  atualizarLinks();
+}));
+document.querySelector('[data-ano-atual]').addEventListener('click', () => {
+  const a = new Date().getFullYear();
+  ini.value = `${a}-01-01`;
+  fim.value = `${a}-12-31`;
+  anoRef.value = a;
+  atualizarLinks();
+});
+atualizarLinks();
+</script>
+{% endblock %}

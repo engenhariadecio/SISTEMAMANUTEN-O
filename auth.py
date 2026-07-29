@@ -22,6 +22,13 @@ EXECUCAO = ("admin", "supervisao", "lider", "manutentor")
 TODOS = tuple(PERFIS.keys())
 
 # ── Permissões por módulo (usado no menu e nas rotas) ──────────────
+#
+# O depósito NLAG (entradas, saídas, cadastro, inventário, etiquetas,
+# coletor e importações) pertence ao Analista de Materiais.
+# O manutentor NÃO abre o módulo de materiais: ele pede a peça de dentro
+# da OS e o sistema decide — se houver saldo NLAG, dá baixa na hora;
+# se não houver, gera a solicitação para o analista.
+#
 PERMISSOES = {
     "os_abrir":         TODOS,
     "os_ver_todas":     ("admin", "supervisao", "lider", "manutentor", "analista"),
@@ -31,12 +38,19 @@ PERMISSOES = {
     "preventiva_exec":  EXECUCAO,
     "preventiva_cad":   GESTAO,
     "ronda_exec":       EXECUCAO,
-    "material_ver":     ("admin", "supervisao", "lider", "manutentor", "analista", "visualizador"),
-    "material_mov":     ("admin", "supervisao", "lider", "manutentor", "analista"),
+
+    # ── Depósito NLAG — analista de materiais e gestão ──
+    "material_ver":     ("admin", "supervisao", "lider", "analista", "visualizador"),
+    "material_mov":     ("admin", "supervisao", "lider", "analista"),
     "material_cad":     GESTAO_ANALISTA,
+
+    # ── Solicitar peça: o manutentor faz, de dentro da OS ──
     "solicitar_material": EXECUCAO + ("analista",),
     "tratar_solicitacao": GESTAO_ANALISTA,
+
     "indicadores":      ("admin", "supervisao", "lider", "analista"),
+    "relatorios":       ("admin", "supervisao", "lider", "analista"),
+    "backup":           ("admin", "supervisao"),
     "admin":            ("admin",),
     "cadastros":        GESTAO,
 }

@@ -27,11 +27,13 @@ def criar_app():
     from blueprints.materiais import bp as materiais_bp
     from blueprints.solicitacoes import bp as solicitacoes_bp
     from blueprints.indicadores import bp as indicadores_bp
+    from blueprints.relatorios import bp as relatorios_bp
     from blueprints.admin import bp as admin_bp
     from blueprints.api import bp as api_bp
 
     for b in (auth_bp, home_bp, corretivas_bp, preventivas_bp, rondas_bp,
-              materiais_bp, solicitacoes_bp, indicadores_bp, admin_bp, api_bp):
+              materiais_bp, solicitacoes_bp, indicadores_bp, relatorios_bp,
+              admin_bp, api_bp):
         app.register_blueprint(b)
 
     # ── Guard global de login ──

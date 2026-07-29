@@ -405,43 +405,139 @@ def baixar_anexo(anexo_id):
 # ══════════════════════════════════════════════════════════════════
 #  MATERIAIS NA OS
 # ══════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════
+#  PEDIDO DE PEÇA — fluxo único
+#  O manutentor informa código e quantidade. O sistema decide:
+#   • há saldo no NLAG  → dá baixa na hora e registra o consumo na OS;
+#   • não há (ou é parcial) → gera solicitação para o Analista de Materiais.
+# ══════════════════════════════════════════════════════════════════
 @bp.route("/<int:os_id>/material", methods=["POST"])
 @exige("os_executar")
 def add_material(os_id):
+    o = db.um("SELECT * FROM ordens_servico WHERE id=%s", (os_id,))
+    if not o:
+        abort(404)
+
     codigo = request.form.get("codigo", "").strip().upper()
     descricao = request.form.get("descricao", "").strip()
-    qtd = float(request.form.get("quantidade") or 1)
-    baixar = bool(request.form.get("baixar"))
+    pausar = request.form.get("pausar") == "1"
+    try:
+        qtd = float(request.form.get("quantidade") or 0)
+    except ValueError:
+        qtd = 0
+    if qtd <= 0:
+        flash("Informe uma quantidade válida.", "warning")
+        return redirect(url_for("os.detalhe", os_id=os_id))
+    if not codigo and not descricao:
+        flash("Informe o código ou a descrição da peça.", "warning")
+        return redirect(url_for("os.detalhe", os_id=os_id))
 
-    mat = db.um("SELECT * FROM materiais WHERE codigo=%s", (codigo,)) if codigo else None
+    mat = db.um("SELECT * FROM materiais WHERE codigo=%s AND ativo=TRUE",
+                (codigo,)) if codigo else None
     if mat and not descricao:
         descricao = mat["descricao"]
 
-    origem = mat["tipo"] if mat else "Externo"
-    db.executar("""INSERT INTO os_materiais
-                   (os_id, material_id, codigo, descricao, quantidade, origem,
-                    valor_unit, usuario_id, baixado)
-                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,FALSE)""",
-                (os_id, mat["id"] if mat else None, codigo or None, descricao, qtd,
-                 origem, mat["valor_unit"] if mat else 0, session["uid"]))
+    # ── Quanto dá para atender agora pelo NLAG ──
+    disponivel = 0.0
+    if mat and mat["tipo"] == "NLAG":
+        disponivel = max(db.saldo_material(mat["codigo"]), 0.0)
+    atendido = min(qtd, disponivel)
+    faltante = round(qtd - atendido, 3)
 
-    # Baixa opcional no estoque NLAG
-    if baixar and mat and mat["tipo"] == "NLAG":
-        saldo = db.saldo_material(codigo)
-        if saldo < qtd:
-            flash(f"Saldo insuficiente de {codigo} (disponível: {saldo:g}). "
-                  "O material foi vinculado mas não houve baixa.", "warning")
+    # ── 1. Baixa do que existe ──
+    if atendido > 0:
+        db.executar("""INSERT INTO movimentacoes
+                       (codigo, tipo, quantidade, usuario, observacao, os_id)
+                       VALUES (%s,'SAIDA',%s,%s,%s,%s)""",
+                    (mat["codigo"], atendido, session["nome"],
+                     f"Consumo na OS #{o['numero']}", os_id))
+        db.executar("""INSERT INTO os_materiais
+                       (os_id, material_id, codigo, descricao, quantidade, origem,
+                        valor_unit, usuario_id, baixado)
+                       VALUES (%s,%s,%s,%s,%s,'NLAG',%s,%s,TRUE)""",
+                    (os_id, mat["id"], mat["codigo"], descricao, atendido,
+                     mat["valor_unit"] or 0, session["uid"]))
+        novo_saldo = db.saldo_material(mat["codigo"])
+        _apontar(os_id, "material",
+                 f"Retirado do depósito NLAG: {atendido:g} {mat['unidade']} de "
+                 f"{descricao} ({mat['codigo']}).")
+        flash(f"Baixa de {atendido:g} {mat['unidade']} registrada. "
+              f"Saldo restante: {novo_saldo:g}.", "success")
+        _avisar_estoque_minimo(mat, novo_saldo)
+
+    # ── 2. Solicitação do que faltou ──
+    if faltante > 0:
+        if not mat:
+            tipo_sm = "Cadastro"
+            obs = "Peça sem cadastro no sistema. Solicitada pelo manutentor durante a OS."
+        elif mat["tipo"] == "NLAG":
+            tipo_sm = "Estoque NLAG"
+            obs = (f"Saldo NLAG insuficiente no momento do pedido "
+                   f"(disponível {disponivel:g}, necessário {qtd:g}).")
         else:
-            db.executar("""INSERT INTO movimentacoes (codigo, tipo, quantidade, usuario, observacao, os_id)
-                           VALUES (%s,'SAIDA',%s,%s,%s,%s)""",
-                        (codigo, qtd, session["nome"], f"Consumo na OS #{os_id}", os_id))
-            db.executar("UPDATE os_materiais SET baixado=TRUE WHERE os_id=%s AND codigo=%s "
-                        "AND baixado=FALSE", (os_id, codigo))
-            flash(f"Baixa de {qtd:g} {mat['unidade']} registrada no estoque NLAG.", "success")
+            saldo_sap = float(mat["saldo_sap"] or 0)
+            tipo_sm = "HIBE/ERSA"
+            obs = (f"Material {mat['tipo']} — saldo do SAP na última importação: "
+                   f"{saldo_sap:g}.")
+
+        numero = db.proximo_numero("solicitacoes_material")
+        eq = o["equipamento_id"] and db.scalar(
+            "SELECT codigo FROM equipamentos WHERE id=%s", (o["equipamento_id"],), default="")
+        sid = db.inserir("""
+            INSERT INTO solicitacoes_material
+              (numero, solicitante_id, codigo, descricao, tipo, quantidade,
+               observacoes, os_id, dt_solicitacao, situacao)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,CURRENT_DATE,'Solicitado') RETURNING id""",
+            (numero, session["uid"], mat["codigo"] if mat else None,
+             descricao or codigo, tipo_sm, faltante,
+             f"{obs} OS #{o['numero']}" + (f" — equipamento {eq}." if eq else "."),
+             os_id))
+        db.executar("""INSERT INTO solicitacao_historico
+                       (solicitacao_id, usuario_id, situacao, comentario)
+                       VALUES (%s,%s,'Solicitado','Solicitada pelo manutentor dentro da OS.')""",
+                    (sid, session["uid"]))
+        _apontar(os_id, "material",
+                 f"Solicitação SM #{numero} enviada ao analista de materiais: "
+                 f"{faltante:g} de {descricao or codigo}.")
+
+        db.notificar_perfis(("analista",),
+                            f"Peça solicitada na OS #{o['numero']} — SM #{numero}",
+                            f"{descricao or codigo} · qtd {faltante:g} · "
+                            f"{eq or 'sem equipamento'}",
+                            url_for("sol.detalhe", sid=sid))
+        db.notificar(o["solicitante_id"], f"OS #{o['numero']} — material solicitado",
+                     f"{descricao or codigo} foi solicitado ao almoxarifado.",
+                     url_for("os.detalhe", os_id=os_id))
+
+        if atendido > 0:
+            flash(f"Faltaram {faltante:g} — solicitação SM #{numero} aberta "
+                  "para o analista de materiais.", "warning")
+        else:
+            flash(f"Sem saldo no depósito NLAG. Solicitação SM #{numero} enviada "
+                  "ao analista de materiais.", "warning")
+
+        # Pausa a OS aguardando a peça
+        if pausar and o["status"] == "em_andamento":
+            db.executar("UPDATE ordens_servico SET status='aguardando_peca' WHERE id=%s",
+                        (os_id,))
+            _iniciar_tempo(os_id, "aguardando_peca")
+            _apontar(os_id, "aguardando_peca", "OS pausada aguardando a chegada da peça.")
 
     _recalcular_custo(os_id)
-    _apontar(os_id, "material", f"Material aplicado: {descricao} ({qtd:g}).")
     return redirect(url_for("os.detalhe", os_id=os_id))
+
+
+def _avisar_estoque_minimo(material, saldo_novo):
+    """Dispara o alerta ao analista quando a baixa cruza o estoque mínimo."""
+    minimo = float(material["estoque_min"] or 0)
+    if minimo and saldo_novo < minimo:
+        sugestao = max(float(material["estoque_max"] or 0) - saldo_novo, minimo - saldo_novo)
+        db.notificar_perfis(
+            ("analista", "lider", "supervisao"),
+            f"Estoque mínimo atingido — {material['codigo']}",
+            f"{material['descricao']} — saldo {saldo_novo:g} {material['unidade']} "
+            f"(mín. {minimo:g}). Sugestão de compra: {max(sugestao, 0):g}.",
+            url_for("mat.alertas"))
 
 
 @bp.route("/<int:os_id>/material/<int:mid>/remover", methods=["POST"])

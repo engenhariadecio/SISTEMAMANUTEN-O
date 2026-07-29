@@ -45,7 +45,7 @@ Integra o **Sistema NLAG** (controle do depósito) como módulo nativo.
 - Conclusão exige **tipo de defeito** e **causa** (listas cadastráveis).
 - Aprovação do solicitante: **Aprovado** finaliza a OS; **Reprovado** exige comentário
   e devolve a OS para a fila com status “Reprovada”.
-- Baixa **opcional** do consumo de peças no estoque NLAG.
+- Pedido de peça com baixa automática no NLAG ou solicitação ao analista (ver abaixo).
 - **Intervenção automática**: o manutentor abre para si mesmo (máquina + sintoma),
   o cronômetro inicia e o tempo fica registrado no histórico do equipamento.
 - **Modo tablet**: fila em cartões grandes, otimizada para uso na máquina.
@@ -119,6 +119,46 @@ Quando o material chega, o manutentor da OS é notificado para retomar o serviç
 - Defeitos e causas mais frequentes.
 - Ficha completa do equipamento: histórico de corretivas, preventivas e terceiros.
 
+### Central de Relatórios (Excel)
+
+Onze relatórios em `.xlsx`, com filtro de período e atalhos de 30/90/180/365 dias.
+Todos saem formatados com a identidade da empresa, cabeçalho fixo, autofiltro,
+larguras ajustadas e linha de totais.
+
+| Relatório | Abas |
+|---|---|
+| Ordens de serviço | dados completos · resumo por situação · por equipamento |
+| Apontamentos e tempos | linha do tempo de cada OS · intervalos de trabalho/pausa/almoço/espera |
+| Preventivas | OMs · programação 52 semanas · previsto x realizado · por responsável |
+| Respostas dos check lists | item a item, com pendências e OS geradas |
+| Rondas de inspeção | pontos verificados, respostas e OS geradas |
+| Materiais e estoque | saldo · movimentações · alertas com sugestão de compra |
+| Solicitações de material | acompanhamento completo · histórico de situações |
+| Indicadores | MTBF/MTTR/disponibilidade/custos · produtividade · defeitos e causas |
+| Equipamentos | inventário · matriz de criticidade · níveis configurados |
+| Manutenção em terceiros | envios, empresas, retornos e valores |
+| Usuários e auditoria | cadastro de usuários · log completo *(só administrador)* |
+
+> As planilhas trazem **valores já apurados, nunca fórmulas**. Como são geradas no
+> servidor, onde não há Excel para recalcular, uma fórmula chegaria vazia ao usuário.
+
+### Backup
+
+Três caminhos, em *Administração → Backup* (administrador e supervisão):
+
+1. **Excel** — uma aba por tabela mais um índice. Legível por qualquer pessoa,
+   serve de registro histórico e auditoria.
+2. **JSON** — fidelidade total de tipos, para restaurar por script ou migrar de servidor.
+3. **`pg_dump`** — comando documentado na própria tela. É o único que inclui as
+   **imagens e anexos** (fotos de ronda, anexos de OS, imagens de material), que ficam
+   como binário no banco e não entram nos dois primeiros.
+
+A tela mostra o número de registros por tabela, a contagem de anexos e a data do
+último backup. Toda geração fica registrada na auditoria.
+
+Rotina sugerida: `pg_dump` semanal guardado fora do Railway e backup em Excel no
+fechamento de cada mês.
+
 ### Área do Administrador
 Usuários e permissões, equipamentos (com criticidade e ficha técnica), centros
 de trabalho, centros de custo, defeitos, causas, estabelecimentos, planos de
@@ -153,12 +193,27 @@ preventiva, rondas, manutenção em terceiros, parâmetros do sistema e auditori
 | Perfil | O que pode fazer |
 |---|---|
 | **Solicitante de OS** | Abre OS, acompanha apontamentos, aprova/reprova o serviço |
-| **Manutentor** | Fila por criticidade, cronômetro, check lists, rondas, solicita peças |
-| **Analista de Materiais** | Trata solicitações, controla estoques, emite alertas de compra |
-| **Líder de Manutenção** | Tudo do manutentor + cadastros, estoques mínimos, visto de liberação |
+| **Manutentor** | Fila por criticidade, cronômetro, OS de emergência, check lists, rondas e **pedido de peça**. Não abre o depósito NLAG |
+| **Analista de Materiais** | Relatórios + **dono do depósito NLAG** — entradas, saídas, cadastro, inventário, etiquetas, coletor, importações, alertas — e trata as solicitações |
+| **Líder de Manutenção** | Tudo do manutentor + cadastros, estoques mínimos, visto de liberação e acesso ao depósito |
 | **Supervisão** | Visão gerencial completa e relatórios globais |
 | **Administrador** | Controle total, incluindo usuários e parâmetros |
 | **Visualizador** | Apenas consulta de saldo |
+
+### Pedido de peça — fluxo único
+
+O manutentor **não entra no depósito**. Ele pede a peça de dentro da OS
+(código e quantidade) e o sistema decide sozinho:
+
+```
+                    ┌─ saldo suficiente no NLAG → baixa na hora, OS segue
+manutentor pede ────┼─ saldo parcial            → baixa o que há + solicita o resto
+                    └─ sem saldo / sem cadastro → solicitação para o Analista
+```
+
+Quando gera solicitação, o analista é notificado na hora, a OS pode ser pausada
+como *aguardando peça* e o manutentor é avisado quando o material chega.
+Peças HIBE/ERSA sempre viram solicitação, com o saldo do SAP anexado para o analista.
 
 ---
 
@@ -287,7 +342,7 @@ sistema-manutencao-decio/
 │   ├── indicadores.py        MTBF, MTTR, % preventivas, custos, parque fabril
 │   ├── admin.py              Usuários, equipamentos, cadastros, parâmetros
 │   └── api.py                Endpoints JSON usados pelas telas
-├── templates/                45 telas (Jinja2 + Bootstrap 5)
+├── templates/                47 telas (Jinja2 + Bootstrap 5)
 ├── static/
 │   ├── css/app.css           Identidade visual (verde #28A353 · azul #10477D)
 │   └── img/logo_decio.png
@@ -305,16 +360,13 @@ cria o que falta e nunca apaga dados existentes.
 
 ## Backup e manutenção
 
-**Backup do banco** (Railway → PostgreSQL → aba *Data* → *Connect*):
+**Pela tela** — *Administração → Backup* oferece download em Excel e em JSON.
+
+**Backup integral** (inclui imagens e anexos), com a `DATABASE_URL` do Railway:
 
 ```bash
-pg_dump "COLE_AQUI_A_DATABASE_URL" > backup_$(date +%Y%m%d).sql
-```
-
-**Restaurar:**
-
-```bash
-psql "COLE_AQUI_A_DATABASE_URL" < backup_20260729.sql
+pg_dump "COLE_AQUI_A_DATABASE_URL" -Fc -f backup_manutencao.dump
+pg_restore -d "URL_DO_DESTINO" --clean --if-exists backup_manutencao.dump
 ```
 
 **Atualizar o sistema:** basta dar `git push`. O Railway refaz o deploy e o
@@ -326,6 +378,8 @@ schema se atualiza sozinho, sem perder dados.
 python teste_sistema.py          # fluxo completo do sistema
 python teste_plano_materiais.py  # plano de materiais
 python teste_criticidade.py      # níveis e matriz de criticidade
+python teste_perfis.py           # permissões e fluxo de pedido de peça
+python teste_relatorios.py       # relatórios em Excel e backup
 ```
 
 ---

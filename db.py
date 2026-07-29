@@ -419,6 +419,8 @@ CREATE TABLE IF NOT EXISTS rondas (
     turno  TEXT,
     ativo  BOOLEAN NOT NULL DEFAULT TRUE
 );
+ALTER TABLE rondas ADD COLUMN IF NOT EXISTS responsavel_id INTEGER REFERENCES usuarios(id);
+ALTER TABLE rondas ADD COLUMN IF NOT EXISTS observacao TEXT;
 
 CREATE TABLE IF NOT EXISTS ronda_pontos (
     id             SERIAL PRIMARY KEY,
@@ -685,6 +687,8 @@ def _seed_inicial():
         ("email_material_solicitado", "1"),
         ("email_material_recebido", "1"),
         ("email_estoque_minimo", "0"),
+        ("email_om_atribuida", "1"),
+        ("email_ronda_atribuida", "1"),
         ("email_preventiva_semana", "0"),
     ]:
         executar("INSERT INTO parametros (chave, valor) VALUES (%s,%s) "

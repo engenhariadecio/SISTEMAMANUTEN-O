@@ -41,6 +41,8 @@ EVENTOS = {
     "os_reprovada":      ("OS reprovada — avisa o manutentor e a liderança", True),
     "material_solicitado": ("Peça solicitada — avisa o analista de materiais", True),
     "material_recebido": ("Material recebido — avisa o manutentor da OS", True),
+    "om_atribuida":      ("Preventiva atribuída — avisa o manutentor", True),
+    "ronda_atribuida":   ("Ronda destinada — avisa o manutentor", True),
     "estoque_minimo":    ("Estoque mínimo atingido — avisa o analista", False),
     "preventiva_semana": ("Preventivas da semana — avisa os responsáveis", False),
 }

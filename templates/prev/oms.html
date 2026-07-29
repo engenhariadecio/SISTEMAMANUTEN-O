@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block titulo %}Ordens de manutenção{% endblock %}
-{% block cabecalho %}Ordens de Manutenção (Preventivas){% endblock %}
+{% block cabecalho %}{% if u.perfil == 'manutentor' %}Minhas Preventivas
+{% else %}Ordens de Manutenção (Preventivas){% endif %}{% endblock %}
 {% block titulo_mob %}OMs{% endblock %}
 
 {% block conteudo %}
@@ -39,9 +40,24 @@
               {% if o.visto_lider_em %}<i class="bi bi-patch-check-fill text-success ms-1" title="Visto do líder"></i>{% endif %}
             </td>
             <td><small>{{ o.tempo_total_seg|dur }}</small></td>
+            {% if pode('preventiva_cad') %}
+            <td onclick="event.stopPropagation()">
+              <form method="post" action="{{ url_for('prev.atribuir_om', om_id=o.id) }}"
+                    class="d-flex gap-1">
+                <select name="manutentor1_id" class="form-select form-select-sm">
+                  <option value="">— ninguém —</option>
+                  {% for m in equipe %}
+                  <option value="{{ m.id }}" {{ 'selected' if m.id == o.manutentor1_id }}>
+                    {{ m.nome }}</option>{% endfor %}
+                </select>
+                <button class="btn btn-sm btn-decio" title="Destinar">
+                  <i class="bi bi-send-fill"></i></button>
+              </form>
+            </td>
+            {% endif %}
           </tr>
           {% else %}
-          <tr><td colspan="9" class="text-center text-mudo py-4">
+          <tr><td colspan="10" class="text-center text-mudo py-4">
             Nenhuma OM. Gere a partir da <a href="{{ url_for('prev.grade') }}">grade de programação</a>.</td></tr>
           {% endfor %}
         </tbody>

@@ -167,6 +167,8 @@ Sete eventos disparam e-mail automaticamente, cada um ligável em
 | OS reprovada | manutentor, líder e supervisão |
 | Peça solicitada | analista de materiais e líder |
 | Material recebido | o manutentor da OS |
+| Preventiva atribuída | o manutentor escolhido pelo líder |
+| Ronda destinada | o manutentor escolhido pelo líder |
 
 Os e-mails saem em HTML com a identidade visual da empresa, uma tabela de
 detalhes (equipamento, criticidade, defeito, tempo de reparo) e um botão que
@@ -303,12 +305,38 @@ preventiva, rondas, manutenção em terceiros, parâmetros do sistema e auditori
 
 ## Perfis de acesso
 
+### O que cada um enxerga
+
+**Manutentor** — tela enxuta, só o que é dele:
+
+```
+Painel · Minhas ordens de serviço · Modo tablet · OS de emergência
+Minhas preventivas (OMs destinadas a ele) · Minhas rondas · Minhas solicitações
+```
+
+Não vê a grade de 52 semanas, os planos, o plano de materiais, a triagem, o
+depósito NLAG, o parque fabril, os indicadores nem os relatórios. Dentro da OS
+ele pede a peça (com baixa automática no NLAG), aponta o tempo e conclui
+anexando fotos, vídeos e relatório.
+
+**Líder** — enxerga tudo e distribui:
+
+```
+Triagem de OS → escolhe o manutentor      Ordens de manutenção → destina a OM
+Criar e destinar rondas                    Grade 52 semanas · planos · check lists
+Plano de materiais · indicadores · relatórios · depósito NLAG
+```
+
+**Analista de Materiais** — dono do depósito NLAG completo: saldo, cadastro,
+entrada, saída, inventário, histórico, coletor, etiquetas, importações,
+exportação e alertas. Mais o tratamento das solicitações e os relatórios.
+
 | Perfil | O que pode fazer |
 |---|---|
 | **Solicitante de OS** | Abre OS, acompanha apontamentos, aprova/reprova o serviço |
-| **Manutentor** | Vê **apenas as OS atribuídas a ele**, cronômetro, OS de emergência, check lists, rondas e pedido de peça. Não abre o depósito NLAG nem se auto-atribui |
+| **Manutentor** | Só as OS, preventivas e rondas **destinadas a ele**. Cronômetro, OS de emergência, pedido de peça e conclusão com evidências. Não planeja nem abre o depósito |
 | **Analista de Materiais** | Relatórios + **dono do depósito NLAG** — entradas, saídas, cadastro, inventário, etiquetas, coletor, importações, alertas — e trata as solicitações |
-| **Líder de Manutenção** | **Faz a triagem e distribui as OS** + cadastros, estoques mínimos, visto de liberação e acesso ao depósito |
+| **Líder de Manutenção** | **Distribui OS, OMs e rondas** + planejamento das 52 semanas, cadastros, estoques mínimos, visto de liberação e depósito |
 | **Supervisão** | Visão gerencial completa e relatórios globais |
 | **Administrador** | Controle total, incluindo usuários e parâmetros |
 | **Visualizador** | Apenas consulta de saldo |
@@ -515,6 +543,7 @@ python teste_relatorios.py       # relatórios em Excel e backup
 python teste_email.py            # disparos de e-mail
 python teste_fluxo.py            # fluxo ponta a ponta com triagem
 python teste_email_config.py     # configuração de e-mail pela tela
+python teste_recorte.py          # recorte de acesso por perfil
 ```
 
 ---

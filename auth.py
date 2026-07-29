@@ -35,10 +35,15 @@ PERMISSOES = {
     "os_executar":      EXECUCAO,
     "os_triagem":       GESTAO,          # só a liderança distribui as OS
     "os_aprovar":       TODOS,          # o solicitante aprova a própria OS
-    "preventiva_ver":   ("admin", "supervisao", "lider", "manutentor", "analista"),
+    # Planejamento das preventivas (grade 52 semanas, planos, plano de materiais)
+    "preventiva_ver":   ("admin", "supervisao", "lider", "analista"),
+    # Executar uma OM que lhe foi atribuída
     "preventiva_exec":  EXECUCAO,
     "preventiva_cad":   GESTAO,
+    # Executar a ronda que lhe foi destinada
     "ronda_exec":       EXECUCAO,
+    # Criar rondas e destinar a um manutentor
+    "ronda_cad":        GESTAO,
 
     # ── Depósito NLAG — analista de materiais e gestão ──
     "material_ver":     ("admin", "supervisao", "lider", "analista", "visualizador"),

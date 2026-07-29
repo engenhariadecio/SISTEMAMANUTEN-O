@@ -13,7 +13,8 @@ from flask import (Blueprint, render_template, request, redirect, url_for,
 import psycopg2
 
 import db
-from auth import exige
+import mailer
+from auth import exige, pode
 
 bp = Blueprint("prev", __name__, url_prefix="/preventivas")
 
@@ -47,6 +48,7 @@ def data_da_semana(ano, semana):
 #  GRADE 52 SEMANAS
 # ══════════════════════════════════════════════════════════════════
 @bp.route("/")
+@exige("preventiva_ver")
 def grade():
     ano = int(request.args.get("ano") or db.hoje().year)
     _, sem_atual = semana_atual()
@@ -120,6 +122,7 @@ def programar():
 #  PLANOS E CHECKLISTS
 # ══════════════════════════════════════════════════════════════════
 @bp.route("/planos")
+@exige("preventiva_ver")
 def planos():
     itens = db.query("""
         SELECT p.*, e.codigo AS eq_codigo, e.nome AS eq_nome, u.nome AS responsavel,
@@ -222,7 +225,7 @@ def plano(plano_id):
 #  ORDENS DE MANUTENÇÃO (execução)
 # ══════════════════════════════════════════════════════════════════
 @bp.route("/oms")
-@exige("preventiva_ver")
+@exige("preventiva_exec")
 def oms():
     status = request.args.get("status", "abertas")
     where = "1=1"
@@ -230,6 +233,11 @@ def oms():
         where = "om.status IN ('aberta','em_andamento')"
     elif status != "todas":
         where = f"om.status='{status}'" if status in ("concluida", "cancelada") else "1=1"
+
+    # O manutentor enxerga apenas as preventivas destinadas a ele
+    if session.get("perfil") == "manutentor":
+        where += f" AND (om.manutentor1_id={int(session['uid'])}" \
+                 f" OR om.manutentor2_id={int(session['uid'])})"
 
     itens = db.query(f"""
         SELECT om.*, e.codigo AS eq_codigo, e.nome AS eq_nome, p.nome AS plano,
@@ -241,7 +249,45 @@ def oms():
         LEFT JOIN usuarios m2 ON m2.id=om.manutentor2_id
         WHERE {where}
         ORDER BY om.status, om.data_prevista NULLS LAST, om.numero DESC LIMIT 300""")
-    return render_template("prev/oms.html", itens=itens, status=status)
+    equipe = db.query("""SELECT id, nome FROM usuarios WHERE ativo=TRUE
+                         AND perfil IN ('manutentor','lider') ORDER BY nome""")
+    return render_template("prev/oms.html", itens=itens, status=status, equipe=equipe)
+
+
+@bp.route("/om/<int:om_id>/atribuir", methods=["POST"])
+@exige("preventiva_cad")
+def atribuir_om(om_id):
+    """A liderança destina a preventiva a um manutentor."""
+    resp = request.form.get("manutentor1_id") or None
+    o = db.um("""SELECT om.*, e.codigo AS eq_codigo, e.nome AS eq_nome, p.nome AS plano
+                 FROM ordens_manutencao om
+                 LEFT JOIN equipamentos e ON e.id=om.equipamento_id
+                 LEFT JOIN planos_preventiva p ON p.id=om.plano_id
+                 WHERE om.id=%s""", (om_id,))
+    if not o:
+        abort(404)
+
+    db.executar("UPDATE ordens_manutencao SET manutentor1_id=%s WHERE id=%s", (resp, om_id))
+    if resp:
+        nome = db.scalar("SELECT nome FROM usuarios WHERE id=%s", (resp,), default="")
+        link = url_for("prev.om", om_id=om_id)
+        db.notificar(int(resp), f"Preventiva OM #{o['numero']} atribuída a você",
+                     f"{o['eq_codigo']} — semana {o['semana']}", link)
+        mailer.avisar(
+            "om_atribuida", mailer.emails_dos_usuarios([resp]),
+            assunto=f"[Manutenção] Preventiva OM #{o['numero']} atribuída a você",
+            titulo=f"Preventiva OM #{o['numero']}",
+            subtitulo=f"{o['eq_codigo']} — {o['eq_nome']}",
+            itens=[("Plano", o["plano"]),
+                   ("Periodicidade", o["periodicidade"]),
+                   ("Semana", f"{o['semana']}/{o['ano']}"),
+                   ("Data prevista", db.fmt(o["data_prevista"], "%d/%m/%Y")),
+                   ("Distribuída por", session["nome"])],
+            botao=("Abrir o check list", mailer.url(link)))
+        flash(f"Preventiva atribuída a {nome}, que já foi notificado.", "success")
+    else:
+        flash("Responsável removido da preventiva.", "success")
+    return redirect(request.referrer or url_for("prev.oms"))
 
 
 @bp.route("/gerar-om/<int:prog_id>", methods=["POST"])
@@ -297,7 +343,7 @@ def gerar_semana():
 
 
 @bp.route("/om/<int:om_id>", methods=["GET", "POST"])
-@exige("preventiva_ver")
+@exige("preventiva_exec")
 def om(om_id):
     o = db.um("""SELECT om.*, e.codigo AS eq_codigo, e.nome AS eq_nome, e.horimetro AS eq_hor,
                         p.nome AS plano, p.codigo_doc,
@@ -314,6 +360,11 @@ def om(om_id):
 
     if request.method == "POST":
         acao = request.form.get("acao")
+        # Só o manutentor designado — ou a liderança — executa
+        if session.get("perfil") == "manutentor" and \
+                session["uid"] not in (o["manutentor1_id"], o["manutentor2_id"]):
+            flash("Esta preventiva está destinada a outro manutentor.", "warning")
+            return redirect(url_for("prev.oms"))
 
         if acao == "iniciar":
             db.executar("""UPDATE ordens_manutencao SET status='em_andamento',
@@ -475,6 +526,7 @@ def _gerar_os_pendencias(om_id, o):
 
 
 @bp.route("/om/anexo/<int:anexo_id>")
+@exige("preventiva_exec")
 def om_anexo(anexo_id):
     a = db.um("SELECT * FROM om_anexos WHERE id=%s", (anexo_id,))
     if not a:

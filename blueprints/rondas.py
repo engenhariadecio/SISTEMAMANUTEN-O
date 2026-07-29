@@ -9,7 +9,8 @@ from flask import (Blueprint, render_template, request, redirect, url_for,
 import psycopg2
 
 import db
-from auth import exige
+import mailer
+from auth import exige, pode
 
 bp = Blueprint("rondas", __name__, url_prefix="/rondas")
 
@@ -17,16 +18,28 @@ bp = Blueprint("rondas", __name__, url_prefix="/rondas")
 @bp.route("/")
 @exige("ronda_exec")
 def lista():
-    rondas = db.query("""SELECT r.*,
+    uid = int(session["uid"])
+    filtro = ""
+    if session.get("perfil") == "manutentor":
+        filtro = f"AND r.responsavel_id = {int(session['uid'])}"
+    rondas = db.query(f"""SELECT r.*, u.nome AS responsavel,
         (SELECT COUNT(*) FROM ronda_pontos p WHERE p.ronda_id=r.id AND p.ativo=TRUE) AS n_pontos,
         (SELECT id FROM ronda_execucoes e WHERE e.ronda_id=r.id AND e.data=CURRENT_DATE
-          ORDER BY id DESC LIMIT 1) AS exec_hoje
-        FROM rondas r WHERE r.ativo=TRUE ORDER BY r.nome""")
-    historico = db.query("""SELECT e.*, r.nome AS ronda, u.nome AS usuario,
+           AND e.usuario_id = {uid} ORDER BY id DESC LIMIT 1) AS exec_hoje,
+        (SELECT COUNT(*) FROM ronda_execucoes e WHERE e.ronda_id=r.id
+           AND e.data=CURRENT_DATE) AS execucoes_hoje
+        FROM rondas r
+        LEFT JOIN usuarios u ON u.id=r.responsavel_id
+        WHERE r.ativo=TRUE {filtro} ORDER BY r.nome""")
+    filtro_h = ""
+    if session.get("perfil") == "manutentor":
+        filtro_h = f"WHERE e.usuario_id = {int(session['uid'])}"
+    historico = db.query(f"""SELECT e.*, r.nome AS ronda, u.nome AS usuario,
         (SELECT COUNT(*) FROM ronda_respostas rr WHERE rr.execucao_id=e.id AND rr.resposta='NOK') AS noks
         FROM ronda_execucoes e
         JOIN rondas r ON r.id=e.ronda_id
         LEFT JOIN usuarios u ON u.id=e.usuario_id
+        {filtro_h}
         ORDER BY e.data DESC, e.id DESC LIMIT 60""")
     return render_template("rondas/lista.html", rondas=rondas, historico=historico)
 
@@ -34,9 +47,15 @@ def lista():
 @bp.route("/<int:ronda_id>/iniciar", methods=["POST"])
 @exige("ronda_exec")
 def iniciar(ronda_id):
+    r = db.um("SELECT * FROM rondas WHERE id=%s", (ronda_id,))
+    if session.get("perfil") == "manutentor" and r and \
+            r["responsavel_id"] not in (None, session["uid"]):
+        flash("Esta ronda está destinada a outro manutentor.", "warning")
+        return redirect(url_for("rondas.lista"))
     existente = db.um("""SELECT id FROM ronda_execucoes
                          WHERE ronda_id=%s AND data=CURRENT_DATE AND status='em_andamento'
-                         ORDER BY id DESC LIMIT 1""", (ronda_id,))
+                           AND usuario_id=%s ORDER BY id DESC LIMIT 1""",
+                      (ronda_id, session["uid"]))
     if existente:
         return redirect(url_for("rondas.executar", exec_id=existente["id"]))
     eid = db.inserir("""INSERT INTO ronda_execucoes (ronda_id, usuario_id, data, status)
@@ -52,6 +71,9 @@ def executar(exec_id):
                  JOIN rondas r ON r.id=e.ronda_id WHERE e.id=%s""", (exec_id,))
     if not e:
         abort(404)
+    if session.get("perfil") == "manutentor" and e["usuario_id"] != session["uid"]:
+        flash("Esta execução de ronda é de outro manutentor.", "warning")
+        return redirect(url_for("rondas.lista"))
 
     if request.method == "POST":
         concluir = request.form.get("acao") == "concluir"
@@ -148,13 +170,23 @@ def foto(resp_id):
 
 # ── Cadastro de rondas e pontos ────────────────────────────────────
 @bp.route("/cadastro", methods=["GET", "POST"])
-@exige("preventiva_cad")
+@exige("ronda_cad")
 def cadastro():
     if request.method == "POST":
         acao = request.form.get("acao")
         if acao == "nova_ronda":
-            db.executar("INSERT INTO rondas (nome, turno) VALUES (%s,%s)",
-                        (request.form["nome"].strip(), request.form.get("turno", "").strip()))
+            rid = db.inserir("""INSERT INTO rondas (nome, turno, responsavel_id, observacao)
+                                VALUES (%s,%s,%s,%s) RETURNING id""",
+                             (request.form["nome"].strip(),
+                              request.form.get("turno", "").strip(),
+                              request.form.get("responsavel_id") or None,
+                              request.form.get("observacao", "").strip() or None))
+            _avisar_responsavel(rid, request.form.get("responsavel_id"))
+        elif acao == "destinar":
+            rid = request.form["ronda_id"]
+            resp = request.form.get("responsavel_id") or None
+            db.executar("UPDATE rondas SET responsavel_id=%s WHERE id=%s", (resp, rid))
+            _avisar_responsavel(rid, resp)
         elif acao == "novo_ponto":
             rid = request.form["ronda_id"]
             ordem = db.scalar("SELECT COALESCE(MAX(ordem),0)+1 AS n FROM ronda_pontos "
@@ -169,10 +201,38 @@ def cadastro():
         flash("Cadastro atualizado.", "success")
         return redirect(url_for("rondas.cadastro"))
 
-    rondas = db.query("SELECT * FROM rondas ORDER BY nome")
+    rondas = db.query("""SELECT r.*, u.nome AS responsavel FROM rondas r
+                         LEFT JOIN usuarios u ON u.id=r.responsavel_id
+                         ORDER BY r.nome""")
+    equipe = db.query("""SELECT id, nome FROM usuarios WHERE ativo=TRUE
+                         AND perfil IN ('manutentor','lider') ORDER BY nome""")
     pontos = db.query("""SELECT p.*, e.codigo AS eq_codigo FROM ronda_pontos p
                          LEFT JOIN equipamentos e ON e.id=p.equipamento_id
                          WHERE p.ativo=TRUE ORDER BY p.ronda_id, p.ordem""")
     equipamentos = db.query("SELECT id, codigo, nome FROM equipamentos WHERE ativo=TRUE ORDER BY codigo")
     return render_template("rondas/cadastro.html", rondas=rondas, pontos=pontos,
-                           equipamentos=equipamentos)
+                           equipamentos=equipamentos, equipe=equipe)
+
+
+def _avisar_responsavel(ronda_id, responsavel_id):
+    """Notifica o manutentor a quem a ronda foi destinada."""
+    if not responsavel_id:
+        return
+    r = db.um("SELECT * FROM rondas WHERE id=%s", (ronda_id,))
+    if not r:
+        return
+    n_pontos = db.scalar("""SELECT COUNT(*) AS n FROM ronda_pontos
+                            WHERE ronda_id=%s AND ativo=TRUE""", (ronda_id,), default=0)
+    link = url_for("rondas.lista")
+    db.notificar(int(responsavel_id), f"Ronda destinada a você — {r['nome']}",
+                 f"{n_pontos} ponto(s) de verificação.", link)
+    mailer.avisar(
+        "ronda_atribuida", mailer.emails_dos_usuarios([responsavel_id]),
+        assunto=f"[Manutenção] Ronda destinada a você — {r['nome']}",
+        titulo=f"Ronda: {r['nome']}",
+        subtitulo="Você é o responsável por executá-la",
+        mensagem=r.get("observacao") or "",
+        itens=[("Turno", r["turno"] or "—"),
+               ("Pontos de verificação", n_pontos),
+               ("Destinada por", session.get("nome", ""))],
+        botao=("Abrir o check list da ronda", mailer.url(link)))

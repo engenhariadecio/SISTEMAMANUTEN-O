@@ -705,6 +705,12 @@ def concluir(os_id):
                    SET status='aguardando_aprovacao', defeito_id=%s, causa_id=%s,
                        acao_realizada=%s, data_conclusao=NOW()
                    WHERE id=%s""", (defeito, causa, acao_txt, os_id))
+
+    # Fotos, vídeos e relatórios do serviço executado
+    n_anexos = _salvar_anexos(os_id, request.files.getlist("evidencias"))
+    if n_anexos:
+        _apontar(os_id, "material" if False else "comentario",
+                 f"{n_anexos} evidência(s) anexada(s) na conclusão.")
     _recalcular_custo(os_id)
     _apontar(os_id, "conclusao", f"Serviço concluído: {acao_txt}")
 
@@ -716,6 +722,8 @@ def concluir(os_id):
     link = url_for("os.detalhe", os_id=os_id)
     db.notificar(o["solicitante_id"], f"OS #{o['numero']} concluída — aprove ou reprove",
                  acao_txt[:150], link)
+    n_evid = db.scalar("SELECT COUNT(*) AS n FROM os_anexos WHERE os_id=%s",
+                       (os_id,), default=0)
 
     det = db.um("""SELECT o.*, e.codigo AS eq_codigo, e.nome AS eq_nome,
                           d.nome AS defeito, c.nome AS causa, r.nome AS responsavel
@@ -737,6 +745,7 @@ def concluir(os_id):
                ("Tipo de defeito", det["defeito"]),
                ("Causa", det["causa"]),
                ("Tempo de reparo", _horas(det["tempo_trabalho_seg"])),
+               ("Evidências anexadas", f"{n_evid} arquivo(s)" if n_evid else "—"),
                ("Concluída em", db.agora().strftime("%d/%m/%Y às %H:%M"))],
         botao=("Aprovar ou reprovar o serviço", mailer.url(link) + "#aprovacao"),
         rodape="Enquanto você não aprovar, a OS permanece pendente no sistema.")

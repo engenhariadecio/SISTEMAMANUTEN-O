@@ -361,7 +361,8 @@
 <!-- ── MODAL CONCLUIR ── -->
 <div class="modal fade" id="modalConcluir" tabindex="-1">
   <div class="modal-dialog modal-lg">
-    <form method="post" action="{{ url_for('os.concluir', os_id=o.id) }}" class="modal-content">
+    <form method="post" action="{{ url_for('os.concluir', os_id=o.id) }}"
+          enctype="multipart/form-data" class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title fw-bold">Concluir OS #{{ o.numero }}</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -386,6 +387,15 @@
             <label class="form-label">Ação realizada <span class="text-danger">*</span></label>
             <textarea name="acao_realizada" class="form-control" rows="4" required
                       placeholder="Descreva o que foi feito para resolver o problema…"></textarea>
+          </div>
+          <div class="col-12">
+            <label class="form-label">
+              <i class="bi bi-camera-fill me-1"></i>Fotos, vídeos e relatório do serviço</label>
+            <input type="file" name="evidencias" class="form-control" multiple
+                   accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx">
+            <small class="text-mudo">
+              Registre o antes e o depois, o laudo do terceiro ou o relatório técnico.
+              Fica anexado à OS e o solicitante vê junto com a aprovação.</small>
           </div>
           <div class="col-12">
             <div class="form-check form-switch">

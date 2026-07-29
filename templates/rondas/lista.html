@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block titulo %}Rondas diárias{% endblock %}
-{% block cabecalho %}Rondas Diárias de Inspeção{% endblock %}
+{% block cabecalho %}{% if u.perfil == "manutentor" %}Minhas Rondas{% else %}Rondas Diárias de Inspeção{% endif %}{% endblock %}
 {% block titulo_mob %}Rondas{% endblock %}
 
 {% block conteudo %}
@@ -13,8 +13,15 @@
           <div>
             <h6 class="fw-bold mb-0">{{ r.nome }}</h6>
             <small class="text-mudo">{{ r.turno or 'Todos os turnos' }} · {{ r.n_pontos }} pontos</small>
+            {% if r.responsavel and u.perfil != 'manutentor' %}
+            <small class="text-mudo d-block"><i class="bi bi-person me-1"></i>{{ r.responsavel }}</small>
+            {% endif %}
           </div>
-          {% if r.exec_hoje %}<span class="pill text-success"><i class="bi bi-check-circle-fill"></i> Hoje</span>{% endif %}
+          {% if r.exec_hoje %}
+          <span class="pill text-success"><i class="bi bi-check-circle-fill"></i> Você hoje</span>
+          {% elif r.execucoes_hoje %}
+          <span class="pill"><i class="bi bi-person-check"></i> já feita hoje</span>
+          {% endif %}
         </div>
         {% if r.exec_hoje %}
         <a href="{{ url_for('rondas.executar', exec_id=r.exec_hoje) }}" class="btn btn-outline-primary w-100">
@@ -28,12 +35,12 @@
     </div>
   </div>
   {% endfor %}
-  {% if pode('preventiva_cad') %}
+  {% if pode('ronda_cad') %}
   <div class="col-md-6 col-xl-4">
     <a href="{{ url_for('rondas.cadastro') }}" class="card h-100 text-decoration-none text-reset">
       <div class="card-body d-flex align-items-center justify-content-center text-mudo">
         <div class="text-center"><i class="bi bi-plus-circle fs-2 d-block mb-1"></i>
-          <span style="font-size:.86rem">Cadastrar ronda / pontos</span></div>
+          <span style="font-size:.86rem">Criar e destinar rondas</span></div>
       </div>
     </a>
   </div>

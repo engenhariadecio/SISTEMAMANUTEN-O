@@ -36,11 +36,18 @@
 
   <div class="nav-section">Visão geral</div>
   {{ item('home.index', 'speedometer2', 'Painel') }}
+  {% if u.perfil != 'manutentor' %}
   {{ item('ind.parque', 'grid-3x3-gap-fill', 'Parque fabril') }}
+  {% endif %}
   {{ item('ind.painel', 'graph-up-arrow', 'Indicadores', 'indicadores') }}
   {{ item('rel.index', 'file-earmark-excel-fill', 'Relatórios', 'relatorios') }}
 
   <div class="nav-section">Corretivas</div>
+  {% if u.perfil == 'manutentor' %}
+  {{ item('os.lista', 'list-task', 'Minhas ordens de serviço') }}
+  {{ item('os.tablet', 'tablet-landscape', 'Modo tablet', 'os_executar') }}
+  {{ item('os.intervencao', 'lightning-charge-fill', 'OS de emergência', 'os_executar') }}
+  {% else %}
   {{ item('os.nova', 'plus-circle-fill', 'Abrir OS') }}
   {{ item('os.lista', 'list-task', 'Ordens de serviço') }}
   {{ item('os.triagem', 'inboxes-fill', 'Triagem de OS', 'os_triagem') }}
@@ -48,13 +55,19 @@
     {{ item('os.tablet', 'tablet-landscape', 'Modo tablet', 'os_executar') }}
     {{ item('os.intervencao', 'lightning-charge-fill', 'Intervenção rápida', 'os_executar') }}
   {% endif %}
+  {% endif %}
 
-  {% if pode('preventiva_ver') %}
+  {% if u.perfil == 'manutentor' %}
+  <div class="nav-section">Preventivas</div>
+  {{ item('prev.oms', 'clipboard2-check-fill', 'Minhas preventivas', 'preventiva_exec') }}
+  {{ item('rondas.lista', 'signpost-split-fill', 'Minhas rondas', 'ronda_exec') }}
+  {% elif pode('preventiva_ver') %}
   <div class="nav-section">Preventivas</div>
   {{ item('prev.grade', 'calendar3-week', 'Grade 52 semanas', 'preventiva_ver') }}
-  {{ item('prev.oms', 'clipboard2-check-fill', 'Ordens de manutenção', 'preventiva_ver') }}
+  {{ item('prev.oms', 'clipboard2-check-fill', 'Ordens de manutenção', 'preventiva_exec') }}
   {{ item('prev.planos', 'card-checklist', 'Planos e check lists', 'preventiva_ver') }}
   {{ item('rondas.lista', 'signpost-split-fill', 'Rondas diárias', 'ronda_exec') }}
+  {{ item('rondas.cadastro', 'diagram-2', 'Criar e destinar rondas', 'ronda_cad') }}
   {{ item('prev.plano_materiais', 'box-seam-fill', 'Plano de materiais', 'preventiva_ver') }}
   {% endif %}
 
@@ -69,9 +82,14 @@
   {{ item('mat.historico', 'clock-history', 'Histórico', 'material_ver') }}
   {% endif %}
 
+  {% if u.perfil != 'manutentor' %}
   <div class="nav-section">Solicitações</div>
   {{ item('sol.nova', 'cart-plus-fill', 'Solicitar material', 'solicitar_material') }}
   {{ item('sol.lista', 'card-list', 'Acompanhamento') }}
+  {% else %}
+  <div class="nav-section">Materiais</div>
+  {{ item('sol.lista', 'card-list', 'Minhas solicitações') }}
+  {% endif %}
 
   {% if pode('cadastros') %}
   <div class="nav-section">Administração</div>

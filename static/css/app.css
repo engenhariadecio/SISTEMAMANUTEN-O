@@ -329,3 +329,16 @@ tr[data-crit] { box-shadow: inset 4px 0 0 var(--cor-crit, #CFD8E5); }
   100% { box-shadow: 0 0 0 0 rgba(40,163,83,0); }
 }
 .card:target { animation: realce 1.6s ease-out 2; scroll-margin-top: 84px; }
+
+
+/* ── Botões de ação principais com a assinatura da marca ── */
+.btn-outline-warning, .btn-outline-info, .btn-outline-primary {
+  border-width: 1.5px; font-weight: 700;
+}
+.acoes-os .btn { border-radius: 11px; padding: 11px 8px; }
+.acoes-os .btn i { display: block; font-size: 1.25rem; margin-bottom: 2px; }
+.btn-verde, .btn-decio, .btn-azul { box-shadow: 0 2px 8px rgba(16,71,125,.18); }
+.btn-verde:hover, .btn-decio:hover, .btn-azul:hover {
+  box-shadow: 0 4px 14px rgba(16,71,125,.28); transform: translateY(-1px);
+}
+.btn { transition: transform .12s, box-shadow .12s, background .15s; }

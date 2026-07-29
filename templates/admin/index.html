@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block titulo %}Administração{% endblock %}
+{% block cabecalho %}Área do Administrador{% endblock %}
+{% block conteudo %}
+<div class="row g-3 mb-3">
+  {% for icone, cor, valor, rotulo in [
+      ('people-fill','i-azul', stats.usuarios,'Usuários ativos'),
+      ('cpu-fill','i-verde', stats.equipamentos,'Equipamentos'),
+      ('diagram-3-fill','i-info', stats.centros,'Centros de trabalho'),
+      ('card-checklist','i-amb', stats.planos,'Planos de preventiva'),
+      ('boxes','i-cinza', stats.materiais,'Materiais'),
+      ('list-task','i-verm', stats.os,'OS registradas')] %}
+  <div class="col-6 col-lg-2"><div class="card"><div class="kpi">
+    <div class="icone {{ cor }}"><i class="bi bi-{{ icone }}"></i></div>
+    <div><div class="valor">{{ valor }}</div><div class="rotulo">{{ rotulo }}</div></div></div></div></div>
+  {% endfor %}
+</div>
+
+<div class="row g-3">
+  {% for rota, icone, titulo, texto, chave in [
+      ('admin.usuarios','people-fill','Usuários e permissões',
+       'Cadastre pessoas, defina perfis de acesso e redefina senhas.','admin'),
+      ('admin.equipamentos','cpu-fill','Equipamentos',
+       'Cadastro do parque fabril, criticidade A/B/C, centro de trabalho e ficha técnica.','cadastros'),
+      ('admin.criticidades','diagram-2-fill','Criticidade',
+       'Níveis A–E configuráveis, prazos de atendimento e matriz de classificação.','cadastros'),
+      ('admin.cadastros','diagram-3-fill','Cadastros gerais',
+       'Centros de trabalho, centros de custo, defeitos, causas e estabelecimentos.','cadastros'),
+      ('prev.planos','card-checklist','Planos e check lists',
+       'Cadastro centralizado dos check lists de preventiva e materiais por periodicidade.','preventiva_cad'),
+      ('rondas.cadastro','signpost-split-fill','Rondas de inspeção',
+       'Pontos de verificação diários (água, lubrificação, compressores, purgadores).','preventiva_cad'),
+      ('admin.terceiros','truck','Manutenção em terceiros',
+       'Registro de envios, empresas, serviços e retornos.','cadastros'),
+      ('admin.parametros','sliders','Parâmetros do sistema',
+       'Custo-hora padrão, tolerância de preventivas e outras configurações.','admin'),
+      ('admin.auditoria','shield-check','Auditoria',
+       'Registro de acessos e ações executadas no sistema.','admin')] %}
+    {% if pode(chave) %}
+    <div class="col-md-6 col-xl-3">
+      <a href="{{ url_for(rota) }}" class="card h-100 text-decoration-none text-reset">
+        <div class="card-body">
+          <i class="bi bi-{{ icone }} fs-3 text-primary d-block mb-2"></i>
+          <div class="fw-bold mb-1">{{ titulo }}</div>
+          <small class="text-mudo">{{ texto }}</small>
+        </div>
+      </a>
+    </div>
+    {% endif %}
+  {% endfor %}
+</div>
+{% endblock %}

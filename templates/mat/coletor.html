@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block titulo %}Coletor{% endblock %}
+{% block cabecalho %}Coletor de Código de Barras{% endblock %}
+{% block titulo_mob %}Coletor{% endblock %}
+{% block conteudo %}
+<div class="row justify-content-center"><div class="col-lg-6">
+  <div class="card">
+    <div class="card-header"><i class="bi bi-upc-scan me-1"></i> Movimentação rápida</div>
+    <div class="card-body">
+      <div class="btn-group w-100 mb-3">
+        <input type="radio" class="btn-check" name="op" id="opSaida" value="SAIDA" checked>
+        <label class="btn btn-outline-danger btn-lg" for="opSaida"><i class="bi bi-box-arrow-up me-1"></i>Saída</label>
+        <input type="radio" class="btn-check" name="op" id="opEntrada" value="ENTRADA">
+        <label class="btn btn-outline-success btn-lg" for="opEntrada"><i class="bi bi-box-arrow-in-down me-1"></i>Entrada</label>
+      </div>
+      <div class="mb-3"><label class="form-label">Código (escaneie)</label>
+        <input id="codigo" class="form-control form-control-lg" autofocus autocomplete="off"></div>
+      <div class="mb-3"><label class="form-label">Quantidade</label>
+        <input id="qtd" type="number" step="0.001" value="1" class="form-control form-control-lg"></div>
+      <button id="btn" class="btn btn-decio btn-lg w-100"><i class="bi bi-check-lg me-1"></i> Registrar</button>
+      <div id="msg" class="mt-3"></div>
+      <div id="log" class="mt-3"></div>
+    </div>
+  </div>
+</div></div>
+{% endblock %}
+{% block js %}
+<script>
+const cod = document.getElementById('codigo'), qtd = document.getElementById('qtd');
+const msg = document.getElementById('msg'), log = document.getElementById('log');
+function registrar(){
+  const c = cod.value.trim(); if(!c) return;
+  const fd = new FormData();
+  fd.append('codigo', c); fd.append('quantidade', qtd.value || 1);
+  fd.append('operacao', document.querySelector('input[name=op]:checked').value);
+  fetch("{{ url_for('mat.coletor') }}", {method:'POST', body:fd})
+    .then(r=>r.json()).then(d=>{
+      msg.innerHTML = `<div class="alert alert-${d.ok?'success':'danger'} py-2 mb-0">${d.msg}</div>`;
+      if(d.ok){
+        log.insertAdjacentHTML('afterbegin',
+          `<div class="d-flex justify-content-between border-bottom py-1" style="font-size:.83rem">
+             <span>${c} — ${d.descricao||''}</span><strong>${qtd.value}</strong></div>`);
+        cod.value=''; qtd.value=1;
+      }
+      cod.focus();
+    });
+}
+document.getElementById('btn').addEventListener('click', registrar);
+cod.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); registrar(); }});
+</script>
+{% endblock %}

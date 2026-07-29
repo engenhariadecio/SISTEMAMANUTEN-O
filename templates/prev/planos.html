@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block titulo %}Planos de preventiva{% endblock %}
+{% block cabecalho %}Planos e Check Lists{% endblock %}
+{% block titulo_mob %}Planos{% endblock %}
+
+{% block conteudo %}
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-card-checklist me-1"></i> {{ itens|length }} plano(s) cadastrado(s)</span>
+    {% if pode('preventiva_cad') %}
+    <a href="{{ url_for('prev.plano_novo') }}" class="btn btn-sm btn-decio"><i class="bi bi-plus-lg me-1"></i>Novo plano</a>
+    {% endif %}
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead><tr><th>Equipamento</th><th>Plano</th><th>Documento</th><th>Responsável</th>
+          <th>Execução</th><th class="text-center">Itens</th><th class="text-center">Materiais</th><th></th></tr></thead>
+        <tbody>
+          {% for p in itens %}
+          <tr style="cursor:pointer" onclick="location.href='{{ url_for('prev.plano', plano_id=p.id) }}'">
+            <td><div class="fw-bold" style="font-size:.84rem">{{ p.eq_codigo }}</div>
+                <small class="text-mudo">{{ p.eq_nome[:30] }}</small></td>
+            <td>{{ p.nome }}</td>
+            <td><small class="text-mudo">{{ p.codigo_doc or '—' }}</small></td>
+            <td><small>{{ p.responsavel or '—' }}</small></td>
+            <td><span class="pill">{{ 'Interna' if p.interna else (p.empresa or 'Terceiros') }}</span></td>
+            <td class="text-center">{{ p.n_itens }}</td>
+            <td class="text-center">{{ p.n_mat }}</td>
+            <td class="text-end">{% if not p.ativo %}<span class="pill">inativo</span>{% endif %}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8" class="text-center text-mudo py-4">Nenhum plano cadastrado.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

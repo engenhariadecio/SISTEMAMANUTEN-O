@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block titulo %}Alertas de estoque{% endblock %}
+{% block cabecalho %}Alertas de Estoque Mínimo{% endblock %}
+{% block titulo_mob %}Alertas{% endblock %}
+{% block conteudo %}
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-exclamation-triangle-fill me-1"></i>
+      {{ itens|length }} item(ns) abaixo do estoque mínimo</span>
+    {% if pode('material_cad') %}
+    <form method="post" action="{{ url_for('mat.enviar_alertas') }}">
+      <button class="btn btn-sm btn-decio"><i class="bi bi-send-fill me-1"></i>
+        Enviar relatório ao comprador</button></form>
+    {% endif %}
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead><tr><th>Código</th><th>Descrição</th><th>Aplicação</th><th>Depósito</th>
+          <th class="text-end">Saldo</th><th class="text-end">Mínimo</th><th class="text-end">Máximo</th>
+          <th class="text-end">Consumo 30d</th><th class="text-end">Sugestão de compra</th><th></th></tr></thead>
+        <tbody>
+          {% for m in itens %}
+          <tr class="{{ 'table-danger' if m.saldo <= 0 else 'table-warning' }}">
+            <td class="fw-semibold">{{ m.codigo }}
+              {% if m.critico %}<i class="bi bi-star-fill text-warning ms-1" title="Peça crítica"></i>{% endif %}</td>
+            <td style="font-size:.85rem">{{ m.descricao[:40] }}</td>
+            <td><small class="text-mudo">{{ (m.aplicacao or '—')[:22] }}</small></td>
+            <td><span class="pill">{{ m.tipo }}</span></td>
+            <td class="text-end fw-bold text-danger">{{ m.saldo|num(0) }}</td>
+            <td class="text-end">{{ m.estoque_min|num(0) }}</td>
+            <td class="text-end">{{ m.estoque_max|num(0) }}</td>
+            <td class="text-end"><small>{{ m.consumo_30d|num(0) }}</small></td>
+            <td class="text-end fw-bold text-primary">{{ m.sugestao|num(0) }} {{ m.unidade }}</td>
+            <td class="text-end">
+              <a href="{{ url_for('sol.nova') }}?codigo={{ m.codigo }}" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-cart-plus"></i></a></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="10" class="text-center text-mudo py-4">
+            <i class="bi bi-check2-circle fs-3 d-block mb-2 opacity-50"></i>
+            Nenhum item abaixo do estoque mínimo.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

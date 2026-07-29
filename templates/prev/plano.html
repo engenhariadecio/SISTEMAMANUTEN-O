@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block titulo %}{{ p.nome }}{% endblock %}
+{% block cabecalho %}{{ p.eq_codigo }} — {{ p.nome }}{% endblock %}
+{% block titulo_mob %}Plano{% endblock %}
+
+{% block conteudo %}
+<div class="row g-3">
+  <div class="col-xl-7">
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-list-check me-1"></i> Itens do check list ({{ itens|length }})</span>
+        {% if pode('preventiva_cad') %}
+        <button class="btn btn-sm btn-decio" data-bs-toggle="modal" data-bs-target="#mItem">
+          <i class="bi bi-plus-lg me-1"></i>Item</button>{% endif %}
+      </div>
+      <div class="card-body p-0">
+        <table class="table mb-0">
+          <thead><tr><th style="width:60px">Nº</th><th>Descrição</th>
+            <th style="width:110px">Periodicidade</th><th style="width:100px">Resposta</th>
+            {% if pode('preventiva_cad') %}<th style="width:40px"></th>{% endif %}</tr></thead>
+          <tbody>
+            {% for i in itens %}
+            <tr>
+              <td class="fw-bold">{{ i.numero }}</td>
+              <td style="font-size:.86rem">{{ i.descricao }}</td>
+              <td><span class="pill">{{ i.periodicidade }}</span></td>
+              <td><small class="text-mudo">{{ 'OK/NOK' if i.tipo_resposta=='ok_nok' else i.tipo_resposta }}</small></td>
+              {% if pode('preventiva_cad') %}
+              <td class="text-end"><form method="post">
+                <input type="hidden" name="acao" value="del_item">
+                <input type="hidden" name="item_id" value="{{ i.id }}">
+                <button class="btn btn-sm btn-link text-danger p-0"><i class="bi bi-trash"></i></button>
+              </form></td>{% endif %}
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-center text-mudo py-4">
+              Nenhum item cadastrado. Adicione os pontos de verificação do check list.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-box-seam-fill me-1"></i> Materiais x periodicidade</span>
+        {% if pode('preventiva_cad') %}
+        <button class="btn btn-sm btn-decio" data-bs-toggle="modal" data-bs-target="#mMat">
+          <i class="bi bi-plus-lg me-1"></i>Material</button>{% endif %}
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table mb-0">
+            <thead><tr><th>Código</th><th>Descrição</th><th>UMB</th>
+              <th class="text-center">SEM</th><th class="text-center">MEN</th><th class="text-center">BIM</th>
+              <th class="text-center">TRI</th><th class="text-center">QUA</th><th class="text-center">SES</th>
+              <th class="text-center">ANU</th>{% if pode('preventiva_cad') %}<th></th>{% endif %}</tr></thead>
+            <tbody>
+              {% for m in materiais %}
+              <tr>
+                <td class="fw-semibold">{{ m.codigo }}</td>
+                <td style="font-size:.82rem">{{ (m.descricao or '')[:36] }}</td>
+                <td><small>{{ m.umb }}</small></td>
+                {% for q in [m.qt_sem, m.qt_men, m.qt_bim, m.qt_tri, m.qt_qua, m.qt_ses, m.qt_anu] %}
+                <td class="text-center">{{ q|num(0) if q and q > 0 else '' }}</td>
+                {% endfor %}
+                {% if pode('preventiva_cad') %}
+                <td class="text-end"><form method="post">
+                  <input type="hidden" name="acao" value="del_material">
+                  <input type="hidden" name="mat_id" value="{{ m.id }}">
+                  <button class="btn btn-sm btn-link text-danger p-0"><i class="bi bi-trash"></i></button>
+                </form></td>{% endif %}
+              </tr>
+              {% else %}
+              <tr><td colspan="11" class="text-center text-mudo py-3">Nenhum material vinculado.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-5">
+    {% if pode('preventiva_cad') %}
+    <div class="card">
+      <div class="card-header"><i class="bi bi-gear-fill me-1"></i> Configuração do plano</div>
+      <div class="card-body">
+        <form method="post">
+          <input type="hidden" name="acao" value="editar">
+          <div class="mb-3"><label class="form-label">Nome</label>
+            <input name="nome" class="form-control" value="{{ p.nome }}" required></div>
+          <div class="mb-3"><label class="form-label">Código do documento</label>
+            <input name="codigo_doc" class="form-control" value="{{ p.codigo_doc or '' }}"></div>
+          <div class="mb-3"><label class="form-label">Responsável</label>
+            <select name="responsavel_id" class="form-select">
+              <option value="">—</option>
+              {% for m in manutentores %}
+              <option value="{{ m.id }}" {{ 'selected' if m.id == p.responsavel_id }}>{{ m.nome }}</option>{% endfor %}
+            </select></div>
+          <div class="row g-2 mb-3">
+            <div class="col-5"><label class="form-label">Execução</label>
+              <select name="interna" class="form-select">
+                <option value="1" {{ 'selected' if p.interna }}>Interna</option>
+                <option value="0" {{ 'selected' if not p.interna }}>Terceiros</option>
+              </select></div>
+            <div class="col-7"><label class="form-label">Empresa</label>
+              <input name="empresa" class="form-control" value="{{ p.empresa or '' }}"></div>
+          </div>
+          <div class="form-check form-switch mb-3">
+            <input class="form-check-input" type="checkbox" name="ativo" value="1" id="ativo" {{ 'checked' if p.ativo }}>
+            <label class="form-check-label" for="ativo">Plano ativo</label></div>
+          <button class="btn btn-decio w-100"><i class="bi bi-check-lg me-1"></i>Salvar</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if pode('preventiva_cad') %}
+<div class="modal fade" id="mItem" tabindex="-1"><div class="modal-dialog">
+  <form method="post" class="modal-content">
+    <input type="hidden" name="acao" value="add_item">
+    <div class="modal-header"><h5 class="modal-title fw-bold">Novo item do check list</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="row g-2">
+        <div class="col-4"><label class="form-label">Nº</label>
+          <input name="numero" class="form-control" placeholder="1 ou 1.1"></div>
+        <div class="col-8"><label class="form-label">Periodicidade</label>
+          <select name="periodicidade" class="form-select">
+            {% for k, v in PERIODICIDADES.items() %}<option value="{{ k }}">{{ k }} — {{ v[0] }}</option>{% endfor %}
+          </select></div>
+        <div class="col-12"><label class="form-label">Descrição <span class="text-danger">*</span></label>
+          <textarea name="descricao" class="form-control" rows="2" required
+            placeholder="Ex.: Teste de estanqueidade da válvula principal"></textarea></div>
+        <div class="col-12"><label class="form-label">Tipo de resposta</label>
+          <select name="tipo_resposta" class="form-select">
+            <option value="ok_nok">OK / NOK</option>
+            <option value="valor">Valor numérico</option>
+            <option value="texto">Texto livre</option>
+          </select></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-decio">Adicionar</button></div>
+  </form>
+</div></div>
+
+<div class="modal fade" id="mMat" tabindex="-1"><div class="modal-dialog">
+  <form method="post" class="modal-content">
+    <input type="hidden" name="acao" value="add_material">
+    <div class="modal-header"><h5 class="modal-title fw-bold">Material do plano</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="row g-2">
+        <div class="col-5"><label class="form-label">Código <span class="text-danger">*</span></label>
+          <input name="codigo" class="form-control" required></div>
+        <div class="col-7"><label class="form-label">Descrição</label>
+          <input name="descricao" class="form-control"></div>
+        <div class="col-4"><label class="form-label">UMB</label>
+          <input name="umb" class="form-control" value="UNI"></div>
+        <div class="col-12"><hr class="my-2">
+          <label class="form-label">Quantidade por periodicidade</label></div>
+        {% for c, l in [('sem','SEM'),('men','MEN'),('bim','BIM'),('tri','TRI'),('qua','QUA'),('ses','SES'),('anu','ANU')] %}
+        <div class="col-3"><label class="form-label mb-1">{{ l }}</label>
+          <input type="number" step="0.001" name="qt_{{ c }}" value="0" class="form-control form-control-sm"></div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-decio">Adicionar</button></div>
+  </form>
+</div></div>
+{% endif %}
+{% endblock %}

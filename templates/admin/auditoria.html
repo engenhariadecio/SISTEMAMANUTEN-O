@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block titulo %}Auditoria{% endblock %}
+{% block cabecalho %}Log de Auditoria{% endblock %}
+{% block conteudo %}
+<div class="card"><div class="card-body p-0">
+  <table class="table table-hover mb-0">
+    <thead><tr><th>Data/Hora</th><th>Usuário</th><th>Ação</th><th>Entidade</th><th>ID</th><th>Detalhe</th></tr></thead>
+    <tbody>
+      {% for i in itens %}
+      <tr><td><small>{{ i.criado_em|dt }}</small></td>
+        <td>{{ i.usuario or '—' }}</td>
+        <td><span class="pill">{{ i.acao }}</span></td>
+        <td><small>{{ i.entidade or '—' }}</small></td>
+        <td><small>{{ i.entidade_id or '' }}</small></td>
+        <td><small class="text-mudo">{{ (i.detalhe or '')[:50] }}</small></td></tr>
+      {% else %}
+      <tr><td colspan="6" class="text-center text-mudo py-4">Sem registros.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% endblock %}

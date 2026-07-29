@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block titulo %}Criticidade{% endblock %}
+{% block cabecalho %}Níveis de Criticidade{% endblock %}
+{% block titulo_mob %}Criticidade{% endblock %}
+
+{% block conteudo %}
+<div class="alert alert-info">
+  <i class="bi bi-info-circle-fill me-1"></i>
+  A criticidade define a <strong>ordem da fila de atendimento</strong>, a cor da faixa em
+  cada OS e o prazo de resposta esperado. É herdada automaticamente pela OS na abertura —
+  inclusive nas geradas por preventiva e por ronda.
+  {% if sem_matriz %}
+  <div class="mt-2">
+    <i class="bi bi-exclamation-triangle-fill text-warning me-1"></i>
+    <strong>{{ sem_matriz }} equipamento(s)</strong> ainda não passaram pela matriz de
+    classificação — a criticidade deles foi definida manualmente.
+  </div>
+  {% endif %}
+</div>
+
+<form method="post">
+<div class="card mb-3">
+  <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <span><i class="bi bi-diagram-2-fill me-1"></i> {{ niveis|length }} nível(is) cadastrado(s)</span>
+    <div class="d-flex gap-2">
+      <button name="acao" value="reclassificar" class="btn btn-sm btn-outline-secondary"
+              onclick="return confirm('Recalcular a criticidade de todos os equipamentos que já têm a matriz preenchida?')">
+        <i class="bi bi-arrow-repeat me-1"></i> Reclassificar pela matriz</button>
+      <button name="acao" value="salvar" class="btn btn-sm btn-decio">
+        <i class="bi bi-check-lg me-1"></i> Salvar alterações</button>
+    </div>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table mb-0 align-middle">
+        <thead><tr>
+          <th style="width:52px">Nível</th><th style="width:150px">Nome</th>
+          <th style="width:74px">Ordem</th><th style="width:70px">Cor</th>
+          <th style="width:110px">Resposta (h)</th><th style="width:110px">Conclusão (h)</th>
+          <th>Quando usar</th>
+          <th style="width:78px" class="text-center">Equip.</th>
+          <th style="width:64px" class="text-center">Ativo</th>
+        </tr></thead>
+        <tbody>
+          {% for n in niveis %}
+          <tr>
+            <td>
+              <input type="hidden" name="codigo" value="{{ n.codigo }}">
+              <span class="crit" style="background:{{ n.cor }}">{{ n.codigo }}</span>
+            </td>
+            <td><input name="nome_{{ n.codigo }}" value="{{ n.nome }}"
+                       class="form-control form-control-sm"></td>
+            <td><input type="number" name="ordem_{{ n.codigo }}" value="{{ n.ordem }}"
+                       min="1" max="99" class="form-control form-control-sm"></td>
+            <td><input type="color" name="cor_{{ n.codigo }}" value="{{ n.cor }}"
+                       class="form-control form-control-sm form-control-color"></td>
+            <td><input type="number" step="0.5" min="0" name="resp_{{ n.codigo }}"
+                       value="{{ n.sla_resposta_h if n.sla_resposta_h is not none else '' }}"
+                       class="form-control form-control-sm" placeholder="—"></td>
+            <td><input type="number" step="0.5" min="0" name="concl_{{ n.codigo }}"
+                       value="{{ n.sla_conclusao_h if n.sla_conclusao_h is not none else '' }}"
+                       class="form-control form-control-sm" placeholder="—"></td>
+            <td><textarea name="desc_{{ n.codigo }}" rows="2"
+                          class="form-control form-control-sm">{{ n.descricao or '' }}</textarea></td>
+            <td class="text-center"><span class="pill">{{ uso.get(n.codigo, 0) }}</span></td>
+            <td class="text-center">
+              <div class="form-check form-switch d-inline-block">
+                <input class="form-check-input" type="checkbox" name="ativo_{{ n.codigo }}"
+                       value="1" {{ 'checked' if n.ativo }}>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card-footer bg-white">
+    <small class="text-mudo">
+      <strong>Ordem</strong> define a prioridade na fila — 1 é atendido primeiro.
+      <strong>Resposta</strong> é o prazo para um manutentor assumir a OS;
+      <strong>conclusão</strong> é o prazo para finalizar. Deixe em branco quando não houver prazo.
+      Desativar um nível não apaga os equipamentos que já o usam — eles vão para o fim da fila.
+    </small>
+  </div>
+</div>
+</form>
+
+<div class="row g-3">
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-plus-circle-fill me-1"></i> Novo nível</div>
+      <div class="card-body">
+        <form method="post"><input type="hidden" name="acao" value="novo">
+          <div class="row g-2 mb-2">
+            <div class="col-4"><label class="form-label">Letra</label>
+              <input name="novo_codigo" maxlength="1" class="form-control text-uppercase"
+                     required placeholder="F"></div>
+            <div class="col-8"><label class="form-label">Nome</label>
+              <input name="novo_nome" class="form-control" placeholder="Ex.: Descartável"></div>
+          </div>
+          <div class="row g-2 mb-2">
+            <div class="col-4"><label class="form-label">Cor</label>
+              <input type="color" name="nova_cor" value="#7A8899"
+                     class="form-control form-control-color w-100"></div>
+            <div class="col-4"><label class="form-label">Resposta (h)</label>
+              <input type="number" step="0.5" name="nova_resp" class="form-control"></div>
+            <div class="col-4"><label class="form-label">Conclusão (h)</label>
+              <input type="number" step="0.5" name="nova_concl" class="form-control"></div>
+          </div>
+          <div class="mb-3"><label class="form-label">Quando usar</label>
+            <textarea name="nova_desc" rows="2" class="form-control"></textarea></div>
+          <button class="btn btn-decio w-100">Criar nível</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-grid-3x3-gap-fill me-1"></i>
+        Matriz de classificação — critérios e pesos</div>
+      <div class="card-body p-0">
+        <table class="table mb-0">
+          <thead><tr><th>Critério</th><th class="text-end">Peso</th><th>Nota 0</th><th>Nota 4</th></tr></thead>
+          <tbody>
+            {% for campo, rotulo, peso, notas in CRITERIOS %}
+            <tr>
+              <td class="fw-semibold" style="font-size:.85rem">{{ rotulo }}</td>
+              <td class="text-end"><span class="pill">{{ peso }}%</span></td>
+              <td><small class="text-mudo">{{ notas[0] }}</small></td>
+              <td><small class="text-mudo">{{ notas[4] }}</small></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="card-footer bg-white">
+        <small class="text-mudo">
+          Cada equipamento recebe nota de 0 a 4 em cada critério. A soma ponderada gera
+          uma pontuação de 0 a 100, que é distribuída entre os níveis ativos —
+          a escala se ajusta sozinha se você criar ou desativar níveis.
+          Classifique em <a href="{{ url_for('admin.equipamentos') }}">Equipamentos</a> →
+          ícone da matriz.
+        </small>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

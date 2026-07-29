@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block titulo %}Saída{% endblock %}
+{% block cabecalho %}Saída de Material — Depósito NLAG{% endblock %}
+{% block titulo_mob %}Saída{% endblock %}
+{% block conteudo %}
+<div class="row g-3">
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-box-arrow-up me-1"></i> Registrar saída</div>
+      <div class="card-body">
+        <form method="post">
+          <div class="mb-3"><label class="form-label">Código do material</label>
+            <input name="codigo" id="codigo" class="form-control form-control-lg" autofocus required
+                   autocomplete="off" placeholder="Escaneie ou digite"></div>
+          <div class="mb-2" id="info"></div>
+          <div class="mb-3"><label class="form-label">Quantidade</label>
+            <input name="quantidade" type="number" step="0.001" min="0.001"
+                   class="form-control form-control-lg" required></div>
+          <div class="mb-3"><label class="form-label">Vincular a uma OS</label>
+            <select name="os_id" class="form-select">
+              <option value="">— Nenhuma —</option>
+              {% for o in abertas %}<option value="{{ o.id }}">OS #{{ o.numero }}</option>{% endfor %}
+            </select></div>
+          <div class="mb-3"><label class="form-label">Observação</label>
+            <input name="observacao" class="form-control" placeholder="Aplicação, solicitante…"></div>
+          <button class="btn btn-azul w-100 btn-lg"><i class="bi bi-check-lg me-1"></i> Confirmar saída</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-clock-history me-1"></i> Últimas saídas</div>
+      <div class="card-body p-0">
+        <table class="table mb-0">
+          <thead><tr><th>Data</th><th>Código</th><th>Descrição</th><th class="text-end">Qtd</th><th>Usuário</th></tr></thead>
+          <tbody>
+            {% for m in ultimas %}
+            <tr><td><small>{{ m.data_hora|dt('%d/%m %H:%M') }}</small></td>
+              <td class="fw-semibold">{{ m.codigo }}</td>
+              <td style="font-size:.83rem">{{ (m.descricao or '')[:34] }}</td>
+              <td class="text-end fw-bold text-danger">−{{ m.quantidade|num(0) }}</td>
+              <td><small>{{ m.usuario }}</small></td></tr>
+            {% else %}
+            <tr><td colspan="5" class="text-center text-mudo py-3">Sem registros.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block js %}
+<script>
+document.getElementById('codigo').addEventListener('blur', function(){
+  const c = this.value.trim(); if(!c) return;
+  fetch(`{{ url_for('mat.api_material', codigo='__C__') }}`.replace('__C__', encodeURIComponent(c)))
+    .then(r=>r.json()).then(d=>{
+      document.getElementById('info').innerHTML = d.ok
+        ? `<div class="alert alert-${d.saldo <= d.minimo ? 'warning':'info'} py-2 mb-0" style="font-size:.85rem"><strong>${d.descricao}</strong><br>Saldo disponível: <strong>${d.saldo}</strong> ${d.unidade}${d.saldo <= d.minimo ? ' — abaixo do mínimo!' : ''}</div>`
+        : `<div class="alert alert-danger py-2 mb-0" style="font-size:.85rem">Material não cadastrado.</div>`;
+    });
+});
+</script>
+{% endblock %}

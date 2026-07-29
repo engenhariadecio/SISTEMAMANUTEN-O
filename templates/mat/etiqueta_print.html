@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8">
+<title>Etiquetas — Décio Metalúrgica</title>
+<style>
+@page { size: A4; margin: 8mm; }
+body { font-family: Arial, Helvetica, sans-serif; margin: 0; }
+.folha { display: flex; flex-wrap: wrap; gap: 3mm; }
+.etq { width: 62mm; height: 30mm; border: 1px dashed #bbb; padding: 2mm 3mm;
+       box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; }
+.etq .desc { font-size: 8pt; font-weight: bold; line-height: 1.15; height: 8mm; overflow: hidden; }
+.etq .cod { font-size: 11pt; font-weight: bold; letter-spacing: .5px; }
+.etq .bc { text-align: center; }
+.etq .bc img { height: 11mm; max-width: 100%; }
+.etq .rodape { display: flex; justify-content: space-between; font-size: 6.5pt; color: #555; }
+@media print { .etq { border-color: transparent; } .noprint { display: none; } }
+</style></head>
+<body>
+<div class="noprint" style="padding:10px;text-align:center">
+  <button onclick="window.print()" style="padding:8px 20px;font-size:14px;cursor:pointer">Imprimir</button>
+</div>
+<div class="folha">
+  {% for e in etiquetas %}
+  <div class="etq">
+    <div class="desc">{{ e.descricao[:64] }}</div>
+    <div class="bc">
+      {% if e.barcode %}<img src="data:image/png;base64,{{ e.barcode }}">{% endif %}
+    </div>
+    <div class="rodape">
+      <span class="cod">{{ e.codigo }}</span>
+      <span>{{ e.unidade }}{% if e.localizacao %} · {{ e.localizacao }}{% endif %}</span>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<script>window.onload = () => setTimeout(() => window.print(), 400);</script>
+</body></html>

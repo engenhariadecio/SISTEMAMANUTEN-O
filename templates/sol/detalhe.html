@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block titulo %}SM #{{ s.numero }}{% endblock %}
+{% block cabecalho %}Solicitação de Material #{{ s.numero }}{% endblock %}
+{% block titulo_mob %}SM #{{ s.numero }}{% endblock %}
+{% block conteudo %}
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-box-seam-fill me-1"></i> Dados da solicitação</span>
+        <span class="badge bg-{{ CORES.get(s.situacao,'secondary') }}">{{ s.situacao }}</span>
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0" style="font-size:.88rem">
+          <dt class="col-sm-4 text-mudo">Solicitante</dt><dd class="col-sm-8">{{ s.solicitante }}</dd>
+          <dt class="col-sm-4 text-mudo">Data</dt><dd class="col-sm-8">{{ s.criado_em|dt }}</dd>
+          <dt class="col-sm-4 text-mudo">Código informado</dt><dd class="col-sm-8">{{ s.codigo or '—' }}</dd>
+          <dt class="col-sm-4 text-mudo">Descrição</dt><dd class="col-sm-8">{{ s.descricao }}</dd>
+          {% if s.link %}<dt class="col-sm-4 text-mudo">Link</dt>
+          <dd class="col-sm-8"><a href="{{ s.link }}" target="_blank" rel="noopener">Abrir referência</a></dd>{% endif %}
+          <dt class="col-sm-4 text-mudo">Tipo</dt><dd class="col-sm-8"><span class="pill">{{ s.tipo }}</span></dd>
+          <dt class="col-sm-4 text-mudo">Quantidade</dt><dd class="col-sm-8">{{ s.quantidade|num(0) }}</dd>
+          <dt class="col-sm-4 text-mudo">Centro de custo</dt>
+          <dd class="col-sm-8">{{ s.cc_codigo }} — {{ s.cc_nome or '—' }}</dd>
+          {% if s.os_numero %}<dt class="col-sm-4 text-mudo">OS vinculada</dt>
+          <dd class="col-sm-8"><a href="{{ url_for('os.detalhe', os_id=s.os_id) }}">OS #{{ s.os_numero }}</a></dd>{% endif %}
+          {% if s.observacoes %}<dt class="col-sm-4 text-mudo">Observações</dt>
+          <dd class="col-sm-8">{{ s.observacoes }}</dd>{% endif %}
+        </dl>
+        <hr>
+        <div class="row g-2" style="font-size:.85rem">
+          <div class="col-4"><span class="text-mudo d-block">Nº Ficha/FDS</span><strong>{{ s.num_ficha or '—' }}</strong></div>
+          <div class="col-4"><span class="text-mudo d-block">ID 4MDG</span><strong>{{ s.id_4mdg or '—' }}</strong></div>
+          <div class="col-4"><span class="text-mudo d-block">Nº PR</span><strong>{{ s.num_pr or '—' }}</strong></div>
+          <div class="col-4"><span class="text-mudo d-block">Código final</span><strong>{{ s.codigo_final or '—' }}</strong></div>
+          <div class="col-4"><span class="text-mudo d-block">Dt. cadastro</span><strong>{{ s.dt_cadastro|data }}</strong></div>
+          <div class="col-4"><span class="text-mudo d-block">Dt. chegada</span><strong>{{ s.dt_chegada|data }}</strong></div>
+        </div>
+      </div>
+    </div>
+
+    {% if pode('tratar_solicitacao') %}
+    <div class="card">
+      <div class="card-header"><i class="bi bi-pencil-square me-1"></i> Atualizar acompanhamento</div>
+      <div class="card-body">
+        <form method="post">
+          <div class="row g-2 mb-3">
+            <div class="col-md-6"><label class="form-label">Situação</label>
+              <select name="situacao" class="form-select">
+                {% for sit in SITUACOES %}
+                <option value="{{ sit }}" {{ 'selected' if s.situacao == sit }}>{{ sit }}</option>{% endfor %}
+              </select></div>
+            <div class="col-md-6"><label class="form-label">Tipo de material</label>
+              <select name="tipo_material" class="form-select">
+                <option value="">—</option>
+                {% for t in ['NLAG','HIBE','ERSA'] %}
+                <option value="{{ t }}" {{ 'selected' if s.tipo_material == t }}>{{ t }}</option>{% endfor %}
+              </select></div>
+            <div class="col-md-4"><label class="form-label">Nº Ficha / FDS</label>
+              <input name="num_ficha" class="form-control" value="{{ s.num_ficha or '' }}"></div>
+            <div class="col-md-4"><label class="form-label">ID 4MDG</label>
+              <input name="id_4mdg" class="form-control" value="{{ s.id_4mdg or '' }}"></div>
+            <div class="col-md-4"><label class="form-label">Nº PR</label>
+              <input name="num_pr" class="form-control" value="{{ s.num_pr or '' }}"></div>
+            <div class="col-md-4"><label class="form-label">Código final SAP</label>
+              <input name="codigo_final" class="form-control" value="{{ s.codigo_final or '' }}"></div>
+            <div class="col-md-4"><label class="form-label">Data de cadastro</label>
+              <input type="date" name="dt_cadastro" class="form-control" value="{{ s.dt_cadastro or '' }}"></div>
+            <div class="col-md-4"><label class="form-label">Data de chegada</label>
+              <input type="date" name="dt_chegada" class="form-control" value="{{ s.dt_chegada or '' }}"></div>
+          </div>
+          <div class="mb-3"><label class="form-label">Comentário para o solicitante</label>
+            <textarea name="comentario" class="form-control" rows="2"></textarea></div>
+          <button class="btn btn-decio"><i class="bi bi-check-lg me-1"></i> Salvar e notificar</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-clock-history me-1"></i> Histórico</div>
+      <div class="card-body">
+        <div class="timeline">
+          {% for h in historico %}
+          <div class="tl-item {{ 'tl-verde' if h.situacao in ('Concluído','Recebido','Compra Aprovada')
+                                 else 'tl-verm' if h.situacao in ('Recusado','Cancelado') }}">
+            <div class="tl-hora">{{ h.criado_em|dt }} · {{ h.usuario }}</div>
+            <div class="tl-texto"><strong>{{ h.situacao }}</strong>
+              {% if h.comentario %}<br>{{ h.comentario }}{% endif %}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

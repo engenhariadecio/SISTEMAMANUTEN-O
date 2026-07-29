@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block titulo %}Usuários{% endblock %}
+{% block cabecalho %}Usuários e Permissões{% endblock %}
+{% block conteudo %}
+<div class="row g-3">
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-person-plus-fill me-1"></i> Novo usuário</div>
+      <div class="card-body">
+        <form method="post"><input type="hidden" name="acao" value="novo">
+          <div class="mb-3"><label class="form-label">Usuário (login) <span class="text-danger">*</span></label>
+            <input name="usuario" class="form-control" required placeholder="ex.: lourivaldo"></div>
+          <div class="mb-3"><label class="form-label">Nome completo <span class="text-danger">*</span></label>
+            <input name="nome" class="form-control" required></div>
+          <div class="mb-3"><label class="form-label">Matrícula</label>
+            <input name="matricula" class="form-control" placeholder="LO1000673"></div>
+          <div class="mb-3"><label class="form-label">E-mail</label>
+            <input type="email" name="email" class="form-control"></div>
+          <div class="mb-3"><label class="form-label">Perfil <span class="text-danger">*</span></label>
+            <select name="perfil" class="form-select" required>
+              {% for k, v in PERFIS.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}
+            </select></div>
+          <div class="mb-3"><label class="form-label">Senha inicial</label>
+            <input name="senha" class="form-control" placeholder="Padrão: decio@2026"></div>
+          <button class="btn btn-decio w-100"><i class="bi bi-check-lg me-1"></i> Criar usuário</button>
+        </form>
+      </div>
+    </div>
+    <div class="card mt-3">
+      <div class="card-header"><i class="bi bi-shield-lock-fill me-1"></i> O que cada perfil pode fazer</div>
+      <div class="card-body" style="font-size:.8rem">
+        <p class="mb-1"><strong>Solicitante</strong> — abre OS, acompanha apontamentos e aprova/reprova o serviço.</p>
+        <p class="mb-1"><strong>Manutentor</strong> — vê a fila por criticidade, usa cronômetro, preenche check lists e solicita peças.</p>
+        <p class="mb-1"><strong>Analista de Materiais</strong> — trata solicitações, controla estoques e emite alertas de compra.</p>
+        <p class="mb-1"><strong>Líder</strong> — tudo do manutentor + cadastro de check lists, estoques mínimos e visto de liberação.</p>
+        <p class="mb-1"><strong>Supervisão</strong> — visão gerencial completa e relatórios globais.</p>
+        <p class="mb-0"><strong>Administrador</strong> — controle total, incluindo usuários e parâmetros.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-people-fill me-1"></i> {{ itens|length }} usuário(s)</div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead><tr><th>Usuário</th><th>Nome</th><th>Matrícula</th><th>Perfil</th>
+              <th>Último acesso</th><th class="text-end">Ações</th></tr></thead>
+            <tbody>
+              {% for i in itens %}
+              <tr class="{{ 'opacity-50' if not i.ativo }}">
+                <td class="fw-semibold">{{ i.usuario }}</td>
+                <td>{{ i.nome }}<br><small class="text-mudo">{{ i.email or '' }}</small></td>
+                <td><small>{{ i.matricula or '—' }}</small></td>
+                <td><span class="pill">{{ PERFIS.get(i.perfil, i.perfil) }}</span></td>
+                <td><small class="text-mudo">{{ i.ultimo_acesso|dt if i.ultimo_acesso else 'nunca' }}</small></td>
+                <td class="text-end text-nowrap">
+                  <button class="btn btn-sm btn-link p-0 me-2" data-bs-toggle="modal"
+                          data-bs-target="#mEdit{{ i.id }}" title="Editar"><i class="bi bi-pencil"></i></button>
+                  <button class="btn btn-sm btn-link p-0 me-2" data-bs-toggle="modal"
+                          data-bs-target="#mSenha{{ i.id }}" title="Redefinir senha"><i class="bi bi-key"></i></button>
+                  <form method="post" class="d-inline"><input type="hidden" name="acao" value="toggle">
+                    <input type="hidden" name="uid" value="{{ i.id }}">
+                    <button class="btn btn-sm btn-link p-0 {{ 'text-danger' if i.ativo else 'text-success' }}"
+                            title="{{ 'Desativar' if i.ativo else 'Ativar' }}">
+                      <i class="bi bi-{{ 'toggle-on' if i.ativo else 'toggle-off' }}"></i></button></form>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% for i in itens %}
+<div class="modal fade" id="mEdit{{ i.id }}" tabindex="-1"><div class="modal-dialog">
+  <form method="post" class="modal-content"><input type="hidden" name="acao" value="editar">
+    <input type="hidden" name="uid" value="{{ i.id }}">
+    <div class="modal-header"><h5 class="modal-title fw-bold">Editar {{ i.usuario }}</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="mb-3"><label class="form-label">Nome</label>
+        <input name="nome" class="form-control" value="{{ i.nome }}" required></div>
+      <div class="mb-3"><label class="form-label">Matrícula</label>
+        <input name="matricula" class="form-control" value="{{ i.matricula or '' }}"></div>
+      <div class="mb-3"><label class="form-label">E-mail</label>
+        <input type="email" name="email" class="form-control" value="{{ i.email or '' }}"></div>
+      <div class="mb-3"><label class="form-label">Telefone</label>
+        <input name="telefone" class="form-control" value="{{ i.telefone or '' }}"></div>
+      <div class="mb-0"><label class="form-label">Perfil</label>
+        <select name="perfil" class="form-select">
+          {% for k, v in PERFIS.items() %}
+          <option value="{{ k }}" {{ 'selected' if i.perfil == k }}>{{ v }}</option>{% endfor %}
+        </select></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-decio">Salvar</button></div>
+  </form>
+</div></div>
+
+<div class="modal fade" id="mSenha{{ i.id }}" tabindex="-1"><div class="modal-dialog">
+  <form method="post" class="modal-content"><input type="hidden" name="acao" value="senha">
+    <input type="hidden" name="uid" value="{{ i.id }}">
+    <div class="modal-header"><h5 class="modal-title fw-bold">Redefinir senha — {{ i.usuario }}</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <label class="form-label">Nova senha</label>
+      <input name="senha" class="form-control" required minlength="6"></div>
+    <div class="modal-footer"><button class="btn btn-azul">Redefinir</button></div>
+  </form>
+</div></div>
+{% endfor %}
+{% endblock %}

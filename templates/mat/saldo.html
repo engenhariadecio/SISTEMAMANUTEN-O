@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block titulo %}Saldo de estoque{% endblock %}
+{% block cabecalho %}Saldo de Materiais{% endblock %}
+{% block titulo_mob %}Estoque{% endblock %}
+
+{% block conteudo %}
+<div class="row g-3 mb-3">
+  <div class="col-4"><div class="card"><div class="kpi">
+    <div class="icone i-azul"><i class="bi bi-boxes"></i></div>
+    <div><div class="valor">{{ resumo.total }}</div><div class="rotulo">Itens</div></div></div></div></div>
+  <div class="col-4"><div class="card"><div class="kpi">
+    <div class="icone i-amb"><i class="bi bi-exclamation-triangle-fill"></i></div>
+    <div><div class="valor">{{ resumo.abaixo }}</div><div class="rotulo">Abaixo do mín.</div></div></div></div></div>
+  <div class="col-4"><div class="card"><div class="kpi">
+    <div class="icone i-verm"><i class="bi bi-x-circle-fill"></i></div>
+    <div><div class="valor">{{ resumo.zerados }}</div><div class="rotulo">Zerados</div></div></div></div></div>
+</div>
+
+<div class="card mb-3"><div class="card-body py-3">
+  <form method="get" class="row g-2 align-items-end">
+    <div class="col-md-3"><label class="form-label mb-1">Depósito</label>
+      <select name="tipo" class="form-select form-select-sm" onchange="this.form.submit()">
+        <option value="NLAG" {{ 'selected' if tipo=='NLAG' }}>NLAG (saldo controlado)</option>
+        <option value="HIBE" {{ 'selected' if tipo=='HIBE' }}>HIBE/ERSA (saldo SAP)</option>
+        <option value="todos" {{ 'selected' if tipo=='todos' }}>Todos</option>
+      </select></div>
+    <div class="col-md-3"><label class="form-label mb-1">Filtro</label>
+      <select name="filtro" class="form-select form-select-sm" onchange="this.form.submit()">
+        <option value="">Todos os itens</option>
+        <option value="criticos" {{ 'selected' if filtro=='criticos' }}>Abaixo do mínimo</option>
+        <option value="zerados" {{ 'selected' if filtro=='zerados' }}>Saldo zerado</option>
+      </select></div>
+    <div class="col-md-4"><label class="form-label mb-1">Buscar</label>
+      <div class="input-group input-group-sm">
+        <input name="q" value="{{ busca }}" class="form-control" placeholder="Código ou descrição">
+        <button class="btn btn-decio"><i class="bi bi-search"></i></button></div></div>
+    <div class="col-md-2 d-flex gap-1 justify-content-end">
+      <a href="{{ url_for('mat.exportar') }}" class="btn btn-sm btn-outline-secondary" title="Exportar CSV">
+        <i class="bi bi-download"></i></a>
+      {% if pode('material_cad') %}
+      <a href="{{ url_for('mat.importar') }}" class="btn btn-sm btn-outline-secondary" title="Importar">
+        <i class="bi bi-upload"></i></a>
+      <a href="{{ url_for('mat.cadastro') }}" class="btn btn-sm btn-decio"><i class="bi bi-plus-lg"></i></a>
+      {% endif %}
+    </div>
+  </form>
+</div></div>
+
+<div class="card">
+  <div class="card-header"><i class="bi bi-boxes me-1"></i> {{ itens|length }} item(ns)</div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead><tr><th style="width:52px"></th><th>Código</th><th>Descrição</th><th>UMB</th>
+          <th>Depósito</th><th class="text-end">Saldo</th><th class="text-end">Mín</th>
+          <th class="text-end">Máx</th><th>Local</th>{% if pode('material_cad') %}<th></th>{% endif %}</tr></thead>
+        <tbody>
+          {% for m in itens %}
+          <tr class="{{ 'table-warning' if m.abaixo_min }}">
+            <td><img src="{{ url_for('mat.imagem', codigo=m.codigo) }}"
+                     style="width:38px;height:38px;object-fit:cover;border-radius:7px"></td>
+            <td class="fw-semibold">{{ m.codigo }}
+              {% if m.critico %}<i class="bi bi-star-fill text-warning ms-1" title="Peça crítica"></i>{% endif %}</td>
+            <td style="font-size:.85rem">{{ m.descricao[:48] }}</td>
+            <td><small>{{ m.unidade }}</small></td>
+            <td><span class="pill">{{ m.tipo }}</span></td>
+            <td class="text-end fw-bold {{ 'text-danger' if m.saldo <= 0 else 'text-warning' if m.abaixo_min }}">
+              {{ m.saldo|num(0) }}</td>
+            <td class="text-end"><small>{{ m.estoque_min|num(0) }}</small></td>
+            <td class="text-end"><small>{{ m.estoque_max|num(0) }}</small></td>
+            <td><small class="text-mudo">{{ m.localizacao or '—' }}</small></td>
+            {% if pode('material_cad') %}
+            <td class="text-end text-nowrap">
+              <a href="{{ url_for('mat.cadastro', editar=m.codigo) }}" class="btn btn-sm btn-link p-0 me-1"
+                 title="Editar"><i class="bi bi-pencil"></i></a>
+              <a href="{{ url_for('mat.historico', codigo=m.codigo) }}" class="btn btn-sm btn-link p-0"
+                 title="Histórico"><i class="bi bi-clock-history"></i></a>
+            </td>
+            {% endif %}
+          </tr>
+          {% else %}
+          <tr><td colspan="10" class="text-center text-mudo py-4">Nenhum material encontrado.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

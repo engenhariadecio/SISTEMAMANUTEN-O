@@ -1,0 +1,8 @@
+Flask==3.0.3
+gunicorn==22.0.0
+psycopg2-binary==2.9.9
+Werkzeug==3.0.3
+Pillow==10.4.0
+python-barcode==0.15.1
+openpyxl==3.1.5
+tzdata==2025.1

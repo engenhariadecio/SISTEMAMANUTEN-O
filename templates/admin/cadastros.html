@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block titulo %}Cadastros gerais{% endblock %}
+{% block cabecalho %}Cadastros Gerais{% endblock %}
+{% block conteudo %}
+<ul class="nav nav-tabs mb-3">
+  <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#t1">Centros de trabalho</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#t2">Centros de custo</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#t3">Defeitos</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#t4">Causas</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#t5">Estabelecimentos</a></li>
+</ul>
+
+<div class="tab-content">
+  {% macro tabela(itens, tabela, colunas) %}
+  <div class="card"><div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead><tr>{% for c in colunas %}<th>{{ c }}</th>{% endfor %}<th></th></tr></thead>
+      <tbody>{{ caller() }}</tbody>
+    </table>
+  </div></div>
+  {% endmacro %}
+
+  <div class="tab-pane fade show active" id="t1">
+    <div class="row g-3">
+      <div class="col-lg-4"><div class="card"><div class="card-header">Novo centro de trabalho</div>
+        <div class="card-body"><form method="post"><input type="hidden" name="acao" value="centro_trabalho">
+          <div class="mb-2"><label class="form-label">Código</label><input name="codigo" class="form-control" required></div>
+          <div class="mb-2"><label class="form-label">Nome</label><input name="nome" class="form-control" required></div>
+          <div class="mb-3"><label class="form-label">Estabelecimento</label>
+            <select name="estabelecimento_id" class="form-select"><option value="">—</option>
+              {% for e in estabs %}<option value="{{ e.id }}">{{ e.nome }}</option>{% endfor %}</select></div>
+          <button class="btn btn-decio w-100">Salvar</button></form></div></div></div>
+      <div class="col-lg-8"><div class="card"><div class="card-body p-0">
+        <table class="table table-hover mb-0"><thead><tr><th>Código</th><th>Nome</th><th>Estabelecimento</th><th></th></tr></thead>
+        <tbody>{% for c in centros %}<tr class="{{ 'opacity-50' if not c.ativo }}">
+          <td class="fw-semibold">{{ c.codigo }}</td><td>{{ c.nome }}</td><td><small>{{ c.estab or '—' }}</small></td>
+          <td class="text-end"><form method="post"><input type="hidden" name="acao" value="desativar">
+            <input type="hidden" name="tabela" value="centros_trabalho"><input type="hidden" name="id" value="{{ c.id }}">
+            <button class="btn btn-sm btn-link p-0"><i class="bi bi-toggle-{{ 'on' if c.ativo else 'off' }}"></i></button>
+          </form></td></tr>{% endfor %}</tbody></table>
+      </div></div></div>
+    </div>
+  </div>
+
+  <div class="tab-pane fade" id="t2">
+    <div class="row g-3">
+      <div class="col-lg-4"><div class="card"><div class="card-header">Novo centro de custo</div>
+        <div class="card-body"><form method="post"><input type="hidden" name="acao" value="centro_custo">
+          <div class="mb-2"><label class="form-label">Código</label>
+            <input name="codigo" class="form-control" required placeholder="210248001"></div>
+          <div class="mb-3"><label class="form-label">Nome</label><input name="nome" class="form-control" required></div>
+          <button class="btn btn-decio w-100">Salvar</button></form></div></div></div>
+      <div class="col-lg-8"><div class="card"><div class="card-body p-0">
+        <table class="table table-hover mb-0"><thead><tr><th>Código</th><th>Nome</th><th></th></tr></thead>
+        <tbody>{% for c in custos %}<tr class="{{ 'opacity-50' if not c.ativo }}">
+          <td class="fw-semibold">{{ c.codigo }}</td><td>{{ c.nome }}</td>
+          <td class="text-end"><form method="post"><input type="hidden" name="acao" value="desativar">
+            <input type="hidden" name="tabela" value="centros_custo"><input type="hidden" name="id" value="{{ c.id }}">
+            <button class="btn btn-sm btn-link p-0"><i class="bi bi-toggle-{{ 'on' if c.ativo else 'off' }}"></i></button>
+          </form></td></tr>{% endfor %}</tbody></table>
+      </div></div></div>
+    </div>
+  </div>
+
+  <div class="tab-pane fade" id="t3">
+    <div class="row g-3">
+      <div class="col-lg-4"><div class="card"><div class="card-header">Novo tipo de defeito</div>
+        <div class="card-body"><form method="post"><input type="hidden" name="acao" value="defeito">
+          <div class="mb-3"><label class="form-label">Nome</label>
+            <input name="nome" class="form-control" required placeholder="Ex.: Pneumático"></div>
+          <button class="btn btn-decio w-100">Salvar</button></form></div></div></div>
+      <div class="col-lg-8"><div class="card"><div class="card-body p-0">
+        <table class="table table-hover mb-0"><thead><tr><th>Defeito</th><th></th></tr></thead>
+        <tbody>{% for d in defeitos %}<tr class="{{ 'opacity-50' if not d.ativo }}">
+          <td>{{ d.nome }}</td>
+          <td class="text-end"><form method="post"><input type="hidden" name="acao" value="desativar">
+            <input type="hidden" name="tabela" value="defeitos"><input type="hidden" name="id" value="{{ d.id }}">
+            <button class="btn btn-sm btn-link p-0"><i class="bi bi-toggle-{{ 'on' if d.ativo else 'off' }}"></i></button>
+          </form></td></tr>{% endfor %}</tbody></table>
+      </div></div></div>
+    </div>
+  </div>
+
+  <div class="tab-pane fade" id="t4">
+    <div class="row g-3">
+      <div class="col-lg-4"><div class="card"><div class="card-header">Nova causa</div>
+        <div class="card-body"><form method="post"><input type="hidden" name="acao" value="causa">
+          <div class="mb-2"><label class="form-label">Nome</label><input name="nome" class="form-control" required></div>
+          <div class="mb-3"><label class="form-label">Defeito relacionado (opcional)</label>
+            <select name="defeito_id" class="form-select"><option value="">Todos</option>
+              {% for d in defeitos %}<option value="{{ d.id }}">{{ d.nome }}</option>{% endfor %}</select></div>
+          <button class="btn btn-decio w-100">Salvar</button></form></div></div></div>
+      <div class="col-lg-8"><div class="card"><div class="card-body p-0">
+        <table class="table table-hover mb-0"><thead><tr><th>Causa</th><th>Defeito</th><th></th></tr></thead>
+        <tbody>{% for c in causas %}<tr class="{{ 'opacity-50' if not c.ativo }}">
+          <td>{{ c.nome }}</td><td><small class="text-mudo">{{ c.defeito or 'Todos' }}</small></td>
+          <td class="text-end"><form method="post"><input type="hidden" name="acao" value="desativar">
+            <input type="hidden" name="tabela" value="causas"><input type="hidden" name="id" value="{{ c.id }}">
+            <button class="btn btn-sm btn-link p-0"><i class="bi bi-toggle-{{ 'on' if c.ativo else 'off' }}"></i></button>
+          </form></td></tr>{% endfor %}</tbody></table>
+      </div></div></div>
+    </div>
+  </div>
+
+  <div class="tab-pane fade" id="t5">
+    <div class="row g-3">
+      <div class="col-lg-4"><div class="card"><div class="card-header">Novo estabelecimento</div>
+        <div class="card-body"><form method="post"><input type="hidden" name="acao" value="estabelecimento">
+          <div class="mb-2"><label class="form-label">Nome</label><input name="nome" class="form-control" required></div>
+          <div class="mb-3"><label class="form-label">Código (centro SAP)</label><input name="codigo" class="form-control"></div>
+          <button class="btn btn-decio w-100">Salvar</button></form></div></div></div>
+      <div class="col-lg-8"><div class="card"><div class="card-body p-0">
+        <table class="table table-hover mb-0"><thead><tr><th>Nome</th><th>Código</th><th></th></tr></thead>
+        <tbody>{% for e in estabs %}<tr class="{{ 'opacity-50' if not e.ativo }}">
+          <td>{{ e.nome }}</td><td><small>{{ e.codigo or '—' }}</small></td>
+          <td class="text-end"><form method="post"><input type="hidden" name="acao" value="desativar">
+            <input type="hidden" name="tabela" value="estabelecimentos"><input type="hidden" name="id" value="{{ e.id }}">
+            <button class="btn btn-sm btn-link p-0"><i class="bi bi-toggle-{{ 'on' if e.ativo else 'off' }}"></i></button>
+          </form></td></tr>{% endfor %}</tbody></table>
+      </div></div></div>
+    </div>
+  </div>
+</div>
+{% endblock %}

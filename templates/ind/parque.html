@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block titulo %}Parque fabril{% endblock %}
+{% block cabecalho %}Visão Geral do Parque Fabril{% endblock %}
+{% block titulo_mob %}Parque fabril{% endblock %}
+{% block conteudo %}
+<div class="row g-3 mb-3">
+  <div class="col-4"><div class="card"><div class="kpi">
+    <div class="icone i-verde"><i class="bi bi-check-circle-fill"></i></div>
+    <div><div class="valor">{{ resumo.operando }}</div><div class="rotulo">Operando</div></div></div></div></div>
+  <div class="col-4"><div class="card"><div class="kpi">
+    <div class="icone i-amb"><i class="bi bi-tools"></i></div>
+    <div><div class="valor">{{ resumo.manutencao }}</div><div class="rotulo">Em manutenção</div></div></div></div></div>
+  <div class="col-4"><div class="card"><div class="kpi">
+    <div class="icone i-verm"><i class="bi bi-exclamation-octagon-fill"></i></div>
+    <div><div class="valor">{{ resumo.parados }}</div><div class="rotulo">Parados</div></div></div></div></div>
+</div>
+
+{% for setor, equips in setores.items() %}
+<div class="card mb-3">
+  <div class="card-header d-flex justify-content-between">
+    <span><i class="bi bi-diagram-3-fill me-1"></i> {{ setor }}</span>
+    <span class="pill">{{ equips|length }} equipamentos</span>
+  </div>
+  <div class="card-body">
+    <div class="row g-2">
+      {% for e in equips %}
+      <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+        <a href="{{ url_for('ind.equipamento', eq_id=e.id) }}" class="eq-card {{ e.status }}">
+          <div class="d-flex justify-content-between align-items-start mb-1">
+            <span class="eq-cod">{{ e.codigo }}</span>
+            <span class="ponto {{ e.status }}"></span>
+          </div>
+          <div class="eq-nome">{{ e.nome }}</div>
+          <div class="d-flex justify-content-between align-items-center mt-2">
+            <span class="crit" style="background:{{ CRIT.get(e.criticidade, {}).get('cor', '#5B93C4') }}" style="width:18px;height:18px;font-size:.62rem">{{ e.criticidade }}</span>
+            {% if e.os_abertas %}
+            <span class="pill text-danger" style="font-size:.64rem">{{ e.os_abertas }} OS</span>{% endif %}
+          </div>
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

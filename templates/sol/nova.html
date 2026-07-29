@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block titulo %}Solicitar material{% endblock %}
+{% block cabecalho %}Solicitação de Material{% endblock %}
+{% block titulo_mob %}Solicitar material{% endblock %}
+{% block conteudo %}
+<div class="row justify-content-center"><div class="col-lg-7">
+  <form method="post">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-cart-plus-fill me-1"></i> Nova solicitação</div>
+      <div class="card-body">
+        <div class="mb-3"><label class="form-label">1. Código / Nome do item</label>
+          <input name="codigo" id="codigo" class="form-control" autocomplete="off"
+                 value="{{ request.args.get('codigo','') }}"
+                 placeholder="Código SAP, se já existir"></div>
+        <div id="info" class="mb-3"></div>
+
+        <div class="mb-3"><label class="form-label">2. Tipo <span class="text-danger">*</span></label>
+          <div class="d-flex flex-wrap gap-2">
+            {% for t in TIPOS %}
+            <input type="radio" class="btn-check" name="tipo" id="t{{ loop.index }}" value="{{ t }}"
+                   {{ 'checked' if loop.first }}>
+            <label class="btn btn-outline-secondary btn-sm" for="t{{ loop.index }}">{{ t }}</label>
+            {% endfor %}
+          </div>
+          <small class="text-mudo d-block mt-1">
+            <strong>Cadastro</strong>: item novo · <strong>Expansão</strong>: código existe mas não neste
+            centro · <strong>Transferência</strong>: mover saldo entre depósitos.</small>
+        </div>
+
+        <div class="mb-3"><label class="form-label">3. Descrição detalhada / link <span class="text-danger">*</span></label>
+          <textarea name="descricao" class="form-control" rows="3" required
+                    placeholder="Descreva o item com especificação técnica completa"></textarea></div>
+
+        <div class="mb-3"><label class="form-label">Link do fornecedor (opcional)</label>
+          <input name="link" class="form-control" placeholder="https://…"></div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-4"><label class="form-label">4. Quantidade <span class="text-danger">*</span></label>
+            <input type="number" step="0.001" min="0.001" name="quantidade" value="1"
+                   class="form-control" required></div>
+          <div class="col-md-8"><label class="form-label">5. Local / Centro de custo</label>
+            <select name="centro_custo_id" class="form-select">
+              <option value="">— Selecione —</option>
+              {% for c in centros %}<option value="{{ c.id }}">{{ c.codigo }} — {{ c.nome }}</option>{% endfor %}
+            </select></div>
+        </div>
+
+        <div class="mb-3"><label class="form-label">Vincular a uma OS</label>
+          <select name="os_id" class="form-select">
+            <option value="">— Nenhuma —</option>
+            {% for o in ordens %}
+            <option value="{{ o.id }}" {{ 'selected' if os_id and o.id|string == os_id }}>
+              OS #{{ o.numero }} — {{ o.descricao_problema[:44] }}</option>{% endfor %}
+          </select>
+          <small class="text-mudo">O solicitante e o manutentor da OS são notificados na chegada do material.</small></div>
+
+        <div class="mb-0"><label class="form-label">6. Observações</label>
+          <textarea name="observacoes" class="form-control" rows="2"
+                    placeholder="Justificativa, urgência, aplicação…"></textarea></div>
+      </div>
+      <div class="card-footer bg-white text-end">
+        <a href="{{ url_for('sol.lista') }}" class="btn btn-outline-secondary">Cancelar</a>
+        <button class="btn btn-decio px-4"><i class="bi bi-send-fill me-1"></i> Enviar solicitação</button>
+      </div>
+    </div>
+  </form>
+</div></div>
+{% endblock %}
+{% block js %}
+<script>
+document.getElementById('codigo').addEventListener('blur', function(){
+  const c = this.value.trim(); if(!c) return;
+  fetch(`{{ url_for('mat.api_material', codigo='__C__') }}`.replace('__C__', encodeURIComponent(c)))
+    .then(r=>r.json()).then(d=>{
+      document.getElementById('info').innerHTML = d.ok
+        ? `<div class="alert alert-success py-2 mb-0" style="font-size:.85rem">
+             <strong>${d.descricao}</strong> — saldo <strong>${d.saldo}</strong> ${d.unidade} (${d.tipo})</div>`
+        : `<div class="alert alert-warning py-2 mb-0" style="font-size:.85rem">
+             Código não localizado — selecione o tipo <strong>Cadastro</strong>.</div>`;
+    });
+});
+</script>
+{% endblock %}

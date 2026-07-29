@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block titulo %}{{ e.codigo }}{% endblock %}
+{% block cabecalho %}{{ e.codigo }} — {{ e.nome }}{% endblock %}
+{% block titulo_mob %}{{ e.codigo }}{% endblock %}
+{% block conteudo %}
+<div class="card mb-3"><div class="card-body">
+  <div class="row g-3">
+    <div class="col-md-8">
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <span class="ponto {{ e.status }}"></span>
+        <h5 class="fw-bold mb-0">{{ e.nome }}</h5>
+        <span class="crit" style="background:{{ CRIT.get(e.criticidade, {}).get('cor', '#5B93C4') }}">{{ e.criticidade }}</span>
+        <span class="pill">{{ e.status }}</span>
+      </div>
+      <dl class="row mb-0" style="font-size:.85rem">
+        <dt class="col-sm-3 text-mudo">Setor</dt><dd class="col-sm-3">{{ e.setor or '—' }}</dd>
+        <dt class="col-sm-3 text-mudo">Estabelecimento</dt><dd class="col-sm-3">{{ e.estabelecimento or '—' }}</dd>
+        <dt class="col-sm-3 text-mudo">Fabricante</dt><dd class="col-sm-3">{{ e.fabricante or '—' }}</dd>
+        <dt class="col-sm-3 text-mudo">Nº de série</dt><dd class="col-sm-3">{{ e.n_serie or '—' }}</dd>
+        <dt class="col-sm-3 text-mudo">Patrimônio</dt><dd class="col-sm-3">{{ e.patrimonio or '—' }}</dd>
+        <dt class="col-sm-3 text-mudo">Ano</dt><dd class="col-sm-3">{{ e.ano_fabricacao or '—' }}</dd>
+        <dt class="col-sm-3 text-mudo">Capacidade</dt><dd class="col-sm-3">{{ e.capacidade or '—' }}</dd>
+        <dt class="col-sm-3 text-mudo">Horímetro</dt><dd class="col-sm-3">{{ e.horimetro|num(0) }}</dd>
+      </dl>
+    </div>
+    <div class="col-md-4">
+      <div class="border rounded p-3" style="background:#F7F9FC">
+        <div class="d-flex justify-content-between mb-1" style="font-size:.86rem">
+          <span class="text-mudo">OS concluídas</span><strong>{{ custos.n }}</strong></div>
+        <div class="d-flex justify-content-between mb-1" style="font-size:.86rem">
+          <span class="text-mudo">Tempo total de reparo</span><strong>{{ custos.tempo|dur }}</strong></div>
+        <div class="d-flex justify-content-between mb-1" style="font-size:.86rem">
+          <span class="text-mudo">Custo de peças</span><strong>{{ custos.pecas|moeda }}</strong></div>
+        <div class="d-flex justify-content-between mb-1" style="font-size:.86rem">
+          <span class="text-mudo">Custo de mão de obra</span><strong>{{ custos.hh|moeda }}</strong></div>
+        <hr class="my-2">
+        <div class="d-flex justify-content-between">
+          <span class="fw-bold">Custo total</span>
+          <strong class="text-primary">{{ (custos.pecas + custos.hh)|moeda }}</strong></div>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+<ul class="nav nav-tabs mb-3">
+  <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tCorr">Corretivas ({{ historico|length }})</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tPrev">Preventivas ({{ oms|length }})</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tTerc">Terceiros ({{ terceiros|length }})</a></li>
+</ul>
+
+<div class="tab-content">
+  <div class="tab-pane fade show active" id="tCorr">
+    <div class="card"><div class="card-body p-0">
+      <div class="table-responsive"><table class="table table-hover mb-0">
+        <thead><tr><th>OS</th><th>Data</th><th>Problema</th><th>Defeito</th><th>Causa</th>
+          <th>Responsável</th><th>Status</th><th class="text-end">Tempo</th></tr></thead>
+        <tbody>
+          {% for o in historico %}
+          <tr style="cursor:pointer" onclick="location.href='{{ url_for('os.detalhe', os_id=o.id) }}'">
+            <td class="fw-bold">#{{ o.numero }}</td>
+            <td><small>{{ o.data_abertura|dt('%d/%m/%y') }}</small></td>
+            <td style="max-width:280px"><span class="text-truncate d-block" style="font-size:.84rem">{{ o.descricao_problema }}</span></td>
+            <td><small>{{ o.defeito or '—' }}</small></td>
+            <td><small>{{ o.causa or '—' }}</small></td>
+            <td><small>{{ o.responsavel or '—' }}</small></td>
+            <td><span class="st st-{{ o.status }}">{{ o.status.replace('_',' ') }}</span></td>
+            <td class="text-end"><small>{{ o.tempo_trabalho_seg|dur }}</small></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8" class="text-center text-mudo py-4">Sem histórico de corretivas.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table></div>
+    </div></div>
+  </div>
+
+  <div class="tab-pane fade" id="tPrev">
+    <div class="card"><div class="card-body p-0">
+      <table class="table table-hover mb-0">
+        <thead><tr><th>OM</th><th>Plano</th><th>Período</th><th>Semana</th>
+          <th>Prevista</th><th>Executada</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for o in oms %}
+          <tr style="cursor:pointer" onclick="location.href='{{ url_for('prev.om', om_id=o.id) }}'">
+            <td class="fw-bold">#{{ o.numero }}</td>
+            <td style="font-size:.84rem">{{ (o.plano or '')[:32] }}</td>
+            <td><span class="pill">{{ o.periodicidade }}</span></td>
+            <td class="text-center">{{ o.semana }}</td>
+            <td><small>{{ o.data_prevista|data }}</small></td>
+            <td><small>{{ o.data_fim|data }}</small></td>
+            <td><span class="st st-{{ 'concluida' if o.status=='concluida' else 'aberta' }}">{{ o.status }}</span></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="text-center text-mudo py-4">Sem preventivas registradas.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div></div>
+  </div>
+
+  <div class="tab-pane fade" id="tTerc">
+    <div class="card"><div class="card-body p-0">
+      <table class="table mb-0">
+        <thead><tr><th>Envio</th><th>Empresa</th><th>Serviço</th><th>Descrição</th>
+          <th>Retorno</th><th class="text-end">Valor</th></tr></thead>
+        <tbody>
+          {% for t in terceiros %}
+          <tr><td><small>{{ t.data_envio|data }}</small></td>
+            <td class="fw-semibold">{{ t.empresa }}</td>
+            <td><span class="pill">{{ t.tipo_servico }}</span></td>
+            <td style="font-size:.84rem">{{ (t.descricao or '')[:40] }}</td>
+            <td><small>{{ t.data_retorno|data }}</small></td>
+            <td class="text-end">{{ t.valor|moeda }}</td></tr>
+          {% else %}
+          <tr><td colspan="6" class="text-center text-mudo py-4">Sem registros de terceiros.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div></div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block titulo %}Solicitações de material{% endblock %}
+{% block cabecalho %}Monitoramento de Solicitações de Material{% endblock %}
+{% block titulo_mob %}Solicitações{% endblock %}
+{% block conteudo %}
+<div class="card mb-3"><div class="card-body py-3">
+  <form method="get" class="row g-2 align-items-end">
+    <div class="col-md-4"><label class="form-label mb-1">Situação</label>
+      <select name="situacao" class="form-select form-select-sm" onchange="this.form.submit()">
+        <option value="abertas" {{ 'selected' if situacao=='abertas' }}>Em aberto</option>
+        <option value="todas" {{ 'selected' if situacao=='todas' }}>Todas</option>
+        {% for s in SITUACOES %}
+        <option value="{{ s }}" {{ 'selected' if situacao == s }}>{{ s }} ({{ resumo.get(s, 0) }})</option>
+        {% endfor %}
+      </select></div>
+    <div class="col-md-5"><label class="form-label mb-1">Buscar</label>
+      <div class="input-group input-group-sm">
+        <input name="q" value="{{ busca }}" class="form-control" placeholder="Nº, código ou descrição">
+        <button class="btn btn-decio"><i class="bi bi-search"></i></button></div></div>
+    <div class="col-md-3 text-end">
+      {% if pode('tratar_solicitacao') %}
+      <a href="{{ url_for('sol.exportar') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-download me-1"></i>CSV</a>{% endif %}
+      <a href="{{ url_for('sol.nova') }}" class="btn btn-sm btn-decio"><i class="bi bi-plus-lg me-1"></i>Nova</a>
+    </div>
+  </form>
+</div></div>
+
+<div class="card">
+  <div class="card-header"><i class="bi bi-card-list me-1"></i> {{ itens|length }} solicitação(ões)</div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead><tr><th>SM</th><th>Data</th><th>Solicitante</th><th>Código</th><th>Descrição</th>
+          <th>Tipo</th><th class="text-end">Qtd</th><th>C. Custo</th><th>OS</th>
+          <th>PR</th><th>Situação</th><th class="text-end">Dias</th></tr></thead>
+        <tbody>
+          {% for s in itens %}
+          <tr style="cursor:pointer" onclick="location.href='{{ url_for('sol.detalhe', sid=s.id) }}'">
+            <td class="fw-bold">#{{ s.numero }}</td>
+            <td><small>{{ s.criado_em|dt('%d/%m/%y') }}</small></td>
+            <td><small>{{ (s.solicitante or '').split(' ')[0] }}</small></td>
+            <td><small class="fw-semibold">{{ s.codigo_final or s.codigo or '—' }}</small></td>
+            <td style="max-width:250px"><span class="text-truncate d-block" style="font-size:.84rem">{{ s.descricao }}</span></td>
+            <td><span class="pill">{{ s.tipo }}</span></td>
+            <td class="text-end">{{ s.quantidade|num(0) }}</td>
+            <td><small class="text-mudo">{{ s.cc_codigo or '—' }}</small></td>
+            <td>{% if s.os_numero %}<small>#{{ s.os_numero }}</small>{% endif %}</td>
+            <td><small class="text-mudo">{{ s.num_pr or '—' }}</small></td>
+            <td><span class="badge bg-{{ CORES.get(s.situacao,'secondary') }}">{{ s.situacao }}</span></td>
+            <td class="text-end"><small class="{{ 'text-danger fw-bold' if s.dias and s.dias > 15 }}">{{ s.dias }}</small></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="12" class="text-center text-mudo py-4">Nenhuma solicitação.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block titulo %}OM #{{ o.numero }}{% endblock %}
+{% block cabecalho %}Ordem de Manutenção #{{ o.numero }}{% endblock %}
+{% block titulo_mob %}OM #{{ o.numero }}{% endblock %}
+
+{% block conteudo %}
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+      <div>
+        <h5 class="fw-bold mb-1">{{ o.eq_codigo }} — {{ o.eq_nome }}</h5>
+        <div class="text-mudo" style="font-size:.87rem">{{ o.plano }}
+          {% if o.codigo_doc %}<span class="pill ms-1">{{ o.codigo_doc }}</span>{% endif %}</div>
+        <div class="mt-2 d-flex flex-wrap gap-3" style="font-size:.83rem">
+          <span><i class="bi bi-calendar3 me-1 text-mudo"></i>Semana {{ o.semana }}/{{ o.ano }}
+            · prevista {{ o.data_prevista|data }}</span>
+          <span class="pill">{{ PERIODICIDADES.get(o.periodicidade, [o.periodicidade])[0] }}</span>
+          <span class="st st-{{ 'concluida' if o.status=='concluida' else 'em_andamento' if o.status=='em_andamento' else 'aberta' }}">{{ o.status }}</span>
+          {% if o.status=='concluida' and o.no_prazo is false %}
+          <span class="pill text-danger"><i class="bi bi-clock-fill"></i> Fora do prazo</span>{% endif %}
+        </div>
+      </div>
+      <div class="text-end">
+        {% if o.visto_lider_em %}
+        <div class="text-success fw-bold" style="font-size:.84rem">
+          <i class="bi bi-patch-check-fill"></i> Liberada por {{ o.lider }}</div>
+        <small class="text-mudo">{{ o.visto_lider_em|dt }}</small>
+        {% elif o.status == 'concluida' and pode('preventiva_cad') %}
+        <form method="post"><input type="hidden" name="acao" value="visto_lider">
+          <button class="btn btn-sm btn-verde"><i class="bi bi-patch-check me-1"></i>Dar visto do líder</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if o.status == 'aberta' and pode('preventiva_exec') %}
+<form method="post" class="mb-3"><input type="hidden" name="acao" value="iniciar">
+  <button class="btn btn-verde btn-lg w-100"><i class="bi bi-play-fill me-1"></i> Iniciar execução da preventiva</button>
+</form>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data">
+<div class="row g-3">
+  <div class="col-xl-8">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-list-check me-1"></i> Check list de verificação</div>
+      <div class="card-body">
+        {% set editavel = o.status in ('aberta','em_andamento') and pode('preventiva_exec') %}
+        {% for i in itens %}
+        <div class="cl-item {{ 'ok' if i.resposta == 'OK' else 'nok' if i.resposta == 'NOK' }}">
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+            <div class="cl-desc flex-grow-1">
+              <span class="pill me-1">{{ i.numero }}</span>{{ i.descricao }}
+              <span class="pill ms-1">{{ i.periodicidade }}</span>
+            </div>
+            {% if i.tipo_resposta == 'ok_nok' %}
+            <div class="btn-group btn-group-sm" role="group">
+              {% for op, cor in [('OK','success'),('NOK','danger'),('NA','secondary')] %}
+              <input type="radio" class="btn-check" name="item_{{ i.id }}" id="i{{ i.id }}{{ op }}"
+                     value="{{ op }}" {{ 'checked' if i.resposta == op }} {{ 'disabled' if not editavel }}>
+              <label class="btn btn-outline-{{ cor }}" for="i{{ i.id }}{{ op }}">{{ op }}</label>
+              {% endfor %}
+            </div>
+            {% else %}
+            <input name="item_{{ i.id }}" class="form-control form-control-sm" style="max-width:200px"
+                   value="{{ i.resposta or '' }}" {{ 'disabled' if not editavel }}>
+            {% endif %}
+          </div>
+          <input name="obs_{{ i.id }}" class="form-control form-control-sm"
+                 placeholder="Observação (obrigatória se NOK)…" value="{{ i.observacao or '' }}"
+                 {{ 'disabled' if not editavel }}>
+          {% if i.os_gerada %}
+          <div class="mt-2"><span class="pill text-danger">
+            <i class="bi bi-arrow-right-circle-fill me-1"></i>OS de corretiva gerada</span></div>
+          {% endif %}
+        </div>
+        {% else %}
+        <div class="text-center text-mudo py-4">
+          Este plano não tem itens cadastrados.
+          <a href="{{ url_for('prev.plano', plano_id=o.plano_id) }}">Cadastrar check list</a>.
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-4">
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-clipboard-data me-1"></i> Dados da execução</div>
+      <div class="card-body">
+        <div class="mb-3"><label class="form-label">Manutentor 1</label>
+          <select name="manutentor1_id" class="form-select form-select-sm" {{ 'disabled' if not editavel }}>
+            <option value="">—</option>
+            {% for m in manutentores %}
+            <option value="{{ m.id }}" {{ 'selected' if m.id == o.manutentor1_id }}>{{ m.nome }}</option>{% endfor %}
+          </select></div>
+        <div class="mb-3"><label class="form-label">Manutentor 2</label>
+          <select name="manutentor2_id" class="form-select form-select-sm" {{ 'disabled' if not editavel }}>
+            <option value="">—</option>
+            {% for m in manutentores %}
+            <option value="{{ m.id }}" {{ 'selected' if m.id == o.manutentor2_id }}>{{ m.nome }}</option>{% endfor %}
+          </select></div>
+        <div class="mb-3"><label class="form-label">Horas da máquina (horímetro)</label>
+          <input type="number" step="0.01" name="horimetro" class="form-control form-control-sm"
+                 value="{{ o.horimetro or o.eq_hor or '' }}" {{ 'disabled' if not editavel }}></div>
+        <div class="form-check form-switch mb-2">
+          <input class="form-check-input" type="checkbox" name="terceirizado" value="1" id="terc"
+                 {{ 'checked' if o.terceirizado }} {{ 'disabled' if not editavel }}>
+          <label class="form-check-label small" for="terc">Executada por terceiros</label></div>
+        <div class="mb-3"><label class="form-label">Empresa</label>
+          <input name="empresa" class="form-control form-control-sm" value="{{ o.empresa or '' }}"
+                 {{ 'disabled' if not editavel }}></div>
+        <div class="mb-3"><label class="form-label">Observações gerais</label>
+          <textarea name="observacoes" class="form-control form-control-sm" rows="3"
+                    {{ 'disabled' if not editavel }}>{{ o.observacoes or '' }}</textarea></div>
+        {% if editavel %}
+        <div class="mb-3"><label class="form-label">Tempo gasto (minutos)</label>
+          <input type="number" step="1" name="tempo_minutos" class="form-control form-control-sm"
+                 value="{{ (o.tempo_total_seg / 60)|round(0)|int if o.tempo_total_seg else '' }}"
+                 placeholder="Ex.: 90"></div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-camera-fill me-1"></i> Fotos e relatórios</div>
+      <div class="card-body">
+        {% if anexos %}
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          {% for a in anexos %}
+          <a href="{{ url_for('prev.om_anexo', anexo_id=a.id) }}" target="_blank"
+             class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-{{ 'image' if a.tipo=='foto' else 'file-earmark-pdf' }} me-1"></i>{{ a.nome[:20] }}</a>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% if editavel %}
+        <div class="mb-2"><label class="form-label">Fotos da preventiva</label>
+          <input type="file" name="fotos" class="form-control form-control-sm" multiple accept="image/*"></div>
+        <div><label class="form-label">Relatório de terceiros</label>
+          <input type="file" name="relatorios" class="form-control form-control-sm" multiple accept=".pdf,.doc,.docx,image/*"></div>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if materiais %}
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-box-seam me-1"></i> Materiais previstos</div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          {% for m in materiais %}
+          <tr><td style="font-size:.8rem"><strong>{{ m.codigo }}</strong><br>
+            <small class="text-mudo">{{ (m.descricao or '')[:30] }}</small></td>
+            <td class="text-end align-middle"><small>{{ m.umb }}</small></td></tr>
+          {% endfor %}
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if editavel %}
+    <div class="d-grid gap-2">
+      <button name="acao" value="salvar" class="btn btn-outline-primary">
+        <i class="bi bi-save me-1"></i> Salvar rascunho</button>
+      <button name="acao" value="concluir" class="btn btn-verde btn-lg"
+              onclick="return confirm('Concluir esta preventiva? Itens marcados como NOK gerarão OS de corretiva planejada.')">
+        <i class="bi bi-check-lg me-1"></i> Concluir preventiva</button>
+      <button type="button" class="btn btn-outline-warning btn-sm"
+              data-bs-toggle="modal" data-bs-target="#mReprog">
+        <i class="bi bi-calendar-x me-1"></i> Reprogramar</button>
+    </div>
+    {% endif %}
+  </div>
+</div>
+</form>
+
+<div class="modal fade" id="mReprog" tabindex="-1"><div class="modal-dialog">
+  <form method="post" class="modal-content">
+    <input type="hidden" name="acao" value="reprogramar">
+    <div class="modal-header"><h5 class="modal-title fw-bold">Reprogramar preventiva</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="mb-3"><label class="form-label">De (semana atual)</label>
+        <input class="form-control" value="{{ o.semana }}" disabled></div>
+      <div class="mb-3"><label class="form-label">Para a semana <span class="text-danger">*</span></label>
+        <input type="number" name="nova_semana" min="1" max="53" class="form-control" required></div>
+      <div class="mb-3"><label class="form-label">Justificativa <span class="text-danger">*</span></label>
+        <textarea name="motivo" class="form-control" rows="3" required></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-warning">Reprogramar</button></div>
+  </form>
+</div></div>
+{% endblock %}
+
+{% block js %}
+<script>
+// Salvamento automático a cada 90 segundos durante a execução
+{% if o.status == 'em_andamento' %}
+setInterval(() => {
+  const f = document.querySelector('form[enctype]');
+  const fd = new FormData(f);
+  fd.set('acao', 'salvar');
+  fetch(window.location.href, { method: 'POST', body: fd });
+}, 90000);
+{% endif %}
+</script>
+{% endblock %}

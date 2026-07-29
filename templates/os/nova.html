@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block titulo %}Abrir OS{% endblock %}
+{% block cabecalho %}Solicitação de Ordem de Serviço{% endblock %}
+{% block titulo_mob %}Abrir OS{% endblock %}
+
+{% block conteudo %}
+<div class="row justify-content-center">
+<div class="col-lg-8">
+  <form method="post" enctype="multipart/form-data">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-plus-circle-fill me-1"></i> Nova ordem de serviço</div>
+      <div class="card-body">
+
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">1. Estabelecimento <span class="text-danger">*</span></label>
+            <div class="d-flex gap-2">
+              {% for e in estabs %}
+              <input type="radio" class="btn-check" name="estabelecimento_id" id="est{{ e.id }}"
+                     value="{{ e.id }}" {{ 'checked' if loop.first }} required>
+              <label class="btn btn-outline-secondary flex-grow-1" for="est{{ e.id }}">{{ e.nome }}</label>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">2. Tipo <span class="text-danger">*</span></label>
+            <div class="d-flex gap-2">
+              <input type="radio" class="btn-check" name="tipo" id="tIndustrial" value="Industrial" checked>
+              <label class="btn btn-outline-secondary flex-grow-1" for="tIndustrial">
+                <i class="bi bi-gear-wide-connected me-1"></i>Industrial</label>
+              <input type="radio" class="btn-check" name="tipo" id="tPredial" value="Predial">
+              <label class="btn btn-outline-secondary flex-grow-1" for="tPredial">
+                <i class="bi bi-building me-1"></i>Predial</label>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">3. Centro de trabalho</label>
+            <select name="centro_trabalho_id" id="centro" class="form-select">
+              <option value="">Todos os setores</option>
+              {% for c in centros %}
+              <option value="{{ c.id }}">{{ c.nome }}{% if c.estab %} ({{ c.estab }}){% endif %}</option>
+              {% endfor %}
+            </select>
+            <small class="text-mudo">Filtra a lista de equipamentos abaixo.</small>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">4. Máquina / local <span class="text-danger">*</span></label>
+            <select name="equipamento_id" id="equipamento" class="form-select">
+              <option value="">— Selecione o equipamento —</option>
+              {% for e in equipamentos %}
+              <option value="{{ e.id }}" data-ct="{{ e.centro_trabalho_id or '' }}"
+                      data-crit="{{ e.criticidade }}" data-tipo="{{ e.tipo }}">
+                {{ e.codigo }} — {{ e.nome }}
+              </option>
+              {% endfor %}
+              <option value="">──────────</option>
+              <option value="OUTRO" id="optOutro">➕ Outro (não está na lista)</option>
+            </select>
+            <div id="avisoCrit" class="mt-2 d-none">
+              <span class="pill">Criticidade do equipamento:
+                <strong id="critValor"></strong></span>
+            </div>
+          </div>
+
+          <div class="col-12 d-none" id="boxOutro">
+            <label class="form-label">Informe o equipamento / local</label>
+            <input name="equipamento_outro" class="form-control"
+                   placeholder="Ex.: Mesa móvel nº 27, Exaustor da solda, Banheiro masculino…">
+            <small class="text-mudo">Será cadastrado depois pelo líder conforme a listagem padrão.</small>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">5. Descreva o problema encontrado <span class="text-danger">*</span></label>
+            <textarea name="descricao_problema" class="form-control" rows="4" required
+                      placeholder="Descreva o defeito, quando começou e o que já foi observado…"></textarea>
+          </div>
+
+          <div class="col-12">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" name="maquina_parada" id="parada">
+              <label class="form-check-label fw-bold" for="parada">
+                <i class="bi bi-exclamation-octagon-fill text-danger me-1"></i>
+                A máquina está parada / produção interrompida
+              </label>
+              <div><small class="text-mudo">Marcando esta opção a OS sobe de prioridade na fila.</small></div>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">6. Anexar arquivos (foto, vídeo, PDF)</label>
+            <input type="file" name="anexos" class="form-control" multiple
+                   accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx">
+            <small class="text-mudo">Até 25 MB por envio. Use a câmera do celular ou tablet.</small>
+          </div>
+        </div>
+
+      </div>
+      <div class="card-footer bg-white d-flex gap-2 justify-content-end">
+        <a href="{{ url_for('home.index') }}" class="btn btn-outline-secondary">Cancelar</a>
+        <button class="btn btn-decio px-4"><i class="bi bi-send-fill me-1"></i> Enviar solicitação</button>
+      </div>
+    </div>
+  </form>
+</div>
+</div>
+{% endblock %}
+
+{% block js %}
+<script>
+const sel = document.getElementById('equipamento');
+const centro = document.getElementById('centro');
+const boxOutro = document.getElementById('boxOutro');
+const todas = Array.from(sel.options).map(o => ({el: o, ct: o.dataset.ct || ''}));
+
+centro.addEventListener('change', () => {
+  const v = centro.value;
+  todas.forEach(o => {
+    if (!o.el.value || o.el.value === 'OUTRO') return;
+    o.el.hidden = v && o.ct !== v;
+  });
+  sel.value = '';
+  atualizar();
+});
+
+function atualizar() {
+  const o = sel.selectedOptions[0];
+  const outro = sel.value === 'OUTRO';
+  boxOutro.classList.toggle('d-none', !outro);
+  const aviso = document.getElementById('avisoCrit');
+  if (o && o.dataset.crit) {
+    document.getElementById('critValor').textContent = o.dataset.crit;
+    aviso.classList.remove('d-none');
+    const t = o.dataset.tipo;
+    if (t) document.getElementById(t === 'Predial' ? 'tPredial' : 'tIndustrial').checked = true;
+  } else {
+    aviso.classList.add('d-none');
+  }
+}
+sel.addEventListener('change', atualizar);
+
+document.querySelector('form').addEventListener('submit', e => {
+  if (!sel.value) { e.preventDefault(); alert('Selecione o equipamento ou escolha "Outro".'); return; }
+  if (sel.value === 'OUTRO') {
+    const txt = document.querySelector('[name=equipamento_outro]').value.trim();
+    if (!txt) { e.preventDefault(); alert('Informe o equipamento ou local.'); return; }
+    sel.value = '';
+  }
+});
+</script>
+{% endblock %}

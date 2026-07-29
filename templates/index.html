@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% block titulo %}Painel{% endblock %}
+{% block cabecalho %}Painel de Manutenção{% endblock %}
+{% block titulo_mob %}Painel{% endblock %}
+
+{% block conteudo %}
+
+<!-- ── KPIs ── -->
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-2">
+    <a href="{{ url_for('os.lista', status='aberta') }}" class="card text-decoration-none text-reset h-100">
+      <div class="kpi"><div class="icone i-azul"><i class="bi bi-inbox-fill"></i></div>
+        <div><div class="valor">{{ resumo.abertas }}</div><div class="rotulo">Abertas</div></div></div>
+    </a>
+  </div>
+  <div class="col-6 col-lg-2">
+    <a href="{{ url_for('os.lista', status='em_andamento') }}" class="card text-decoration-none text-reset h-100">
+      <div class="kpi"><div class="icone i-verde"><i class="bi bi-play-circle-fill"></i></div>
+        <div><div class="valor">{{ resumo.andamento }}</div><div class="rotulo">Em andamento</div></div></div>
+    </a>
+  </div>
+  <div class="col-6 col-lg-2">
+    <a href="{{ url_for('os.lista', status='aguardando_peca') }}" class="card text-decoration-none text-reset h-100">
+      <div class="kpi"><div class="icone i-info"><i class="bi bi-box-seam"></i></div>
+        <div><div class="valor">{{ resumo.aguardando_peca }}</div><div class="rotulo">Aguard. peça</div></div></div>
+    </a>
+  </div>
+  <div class="col-6 col-lg-2">
+    <a href="{{ url_for('os.lista', status='aprovacao') }}" class="card text-decoration-none text-reset h-100">
+      <div class="kpi"><div class="icone i-amb"><i class="bi bi-patch-question-fill"></i></div>
+        <div><div class="valor">{{ resumo.aguardando_aprov }}</div><div class="rotulo">Aguard. aprov.</div></div></div>
+    </a>
+  </div>
+  <div class="col-6 col-lg-2">
+    <a href="{{ url_for('os.lista', status='reprovada') }}" class="card text-decoration-none text-reset h-100">
+      <div class="kpi"><div class="icone i-verm"><i class="bi bi-x-octagon-fill"></i></div>
+        <div><div class="valor">{{ resumo.reprovadas }}</div><div class="rotulo">Reprovadas</div></div></div>
+    </a>
+  </div>
+  <div class="col-6 col-lg-2">
+    <a href="{{ url_for('ind.parque') }}" class="card text-decoration-none text-reset h-100">
+      <div class="kpi"><div class="icone i-verm"><i class="bi bi-exclamation-octagon-fill"></i></div>
+        <div><div class="valor">{{ resumo.parados }}</div><div class="rotulo">Máq. paradas</div></div></div>
+    </a>
+  </div>
+</div>
+
+<!-- ── Alertas rápidos ── -->
+<div class="row g-3 mb-3">
+  {% if pode('preventiva_ver') %}
+  <div class="col-md-4">
+    <a href="{{ url_for('prev.grade') }}" class="card text-decoration-none text-reset h-100">
+      <div class="card-body d-flex align-items-center gap-3 py-3">
+        <i class="bi bi-calendar3-week fs-3 text-primary"></i>
+        <div>
+          <div class="fw-bold">{{ resumo.prev_semana }} preventiva(s) na semana {{ semana }}</div>
+          <small class="text-mudo">
+            {% if resumo.prev_atrasadas %}<span class="text-danger fw-bold">{{ resumo.prev_atrasadas }} em atraso</span>
+            {% else %}Nenhuma pendência de semanas anteriores{% endif %}
+          </small>
+        </div>
+      </div>
+    </a>
+  </div>
+  {% endif %}
+  {% if pode('material_ver') %}
+  <div class="col-md-4">
+    <a href="{{ url_for('mat.alertas') }}" class="card text-decoration-none text-reset h-100">
+      <div class="card-body d-flex align-items-center gap-3 py-3">
+        <i class="bi bi-exclamation-triangle-fill fs-3 text-warning"></i>
+        <div>
+          <div class="fw-bold">{{ resumo.material_critico }} item(ns) abaixo do mínimo</div>
+          <small class="text-mudo">Sugestão de compra disponível</small>
+        </div>
+      </div>
+    </a>
+  </div>
+  {% endif %}
+  <div class="col-md-4">
+    <a href="{{ url_for('sol.lista') }}" class="card text-decoration-none text-reset h-100">
+      <div class="card-body d-flex align-items-center gap-3 py-3">
+        <i class="bi bi-cart-check-fill fs-3 text-info"></i>
+        <div>
+          <div class="fw-bold">{{ resumo.solic_abertas }} solicitação(ões) em curso</div>
+          <small class="text-mudo">Materiais em cadastro / compra</small>
+        </div>
+      </div>
+    </a>
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- ── Fila de OS ── -->
+  <div class="col-xl-8">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-list-task me-1"></i> Fila de atendimento — ordenada por criticidade</span>
+        <a href="{{ url_for('os.lista') }}" class="btn btn-sm btn-outline-secondary">Ver todas</a>
+      </div>
+      <div class="card-body p-0">
+        {% if fila %}
+        <div class="table-responsive">
+          <table class="table table-hover mb-0 align-middle">
+            <thead><tr>
+              <th style="width:38px"></th><th>OS</th><th>Equipamento</th>
+              <th>Problema</th><th>Responsável</th><th>Status</th><th>Aberta há</th>
+            </tr></thead>
+            <tbody>
+              {% for o in fila %}
+              <tr data-crit="{{ o.criticidade }}" style="--cor-crit:{{ CRIT.get(o.criticidade, {}).get('cor', '#CFD8E5') }}" style="cursor:pointer"
+                  onclick="location.href='{{ url_for('os.detalhe', os_id=o.id) }}'">
+                <td><span class="crit" style="background:{{ CRIT.get(o.criticidade, {}).get('cor', '#5B93C4') }}">{{ o.criticidade }}</span></td>
+                <td class="fw-bold">#{{ o.numero }}</td>
+                <td>
+                  <div class="fw-semibold" style="font-size:.83rem">{{ o.eq_codigo or '—' }}</div>
+                  <small class="text-mudo">{{ (o.eq_nome or o.equipamento_outro or '')[:32] }}</small>
+                </td>
+                <td style="max-width:260px"><span class="text-truncate d-block">{{ o.descricao_problema }}</span></td>
+                <td><small>{{ o.responsavel or '—' }}</small></td>
+                <td>
+                  <span class="st st-{{ o.status }}">{{ o.status.replace('_',' ') }}</span>
+                  {% if o.maquina_parada %}<i class="bi bi-exclamation-octagon-fill text-danger ms-1" title="Máquina parada"></i>{% endif %}
+                </td>
+                <td><small class="text-mudo">{{ o.data_abertura|dt('%d/%m %H:%M') }}</small></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-center text-mudo py-5">
+          <i class="bi bi-check2-circle fs-1 d-block mb-2 opacity-50"></i>Nenhuma OS na fila.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Coluna direita ── -->
+  <div class="col-xl-4">
+    {% if parados %}
+    <div class="card mb-3">
+      <div class="card-header text-danger"><i class="bi bi-exclamation-octagon-fill me-1"></i> Equipamentos parados</div>
+      <div class="card-body p-0">
+        <div class="list-group list-group-flush">
+          {% for e in parados[:8] %}
+          <a href="{{ url_for('ind.equipamento', eq_id=e.id) }}" class="list-group-item list-group-item-action py-2">
+            <div class="d-flex align-items-center gap-2">
+              <span class="ponto parado"></span>
+              <div class="flex-grow-1">
+                <div class="fw-bold" style="font-size:.83rem">{{ e.codigo }}</div>
+                <small class="text-mudo">{{ e.nome[:34] }}</small>
+              </div>
+              <span class="crit" style="background:{{ CRIT.get(e.criticidade, {}).get('cor', '#5B93C4') }}">{{ e.criticidade }}</span>
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-graph-up me-1"></i> OS abertas — últimos 14 dias</div>
+      <div class="card-body"><canvas id="grafico" height="150"></canvas></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><i class="bi bi-person-lines-fill me-1"></i> Minhas solicitações</div>
+      <div class="card-body p-0">
+        {% if minhas %}
+        <div class="list-group list-group-flush">
+          {% for o in minhas %}
+          <a href="{{ url_for('os.detalhe', os_id=o.id) }}" class="list-group-item list-group-item-action py-2">
+            <div class="d-flex justify-content-between align-items-start gap-2">
+              <div class="overflow-hidden">
+                <div class="fw-bold" style="font-size:.82rem">#{{ o.numero }} · {{ o.eq_codigo or o.equipamento_outro or '—' }}</div>
+                <small class="text-mudo text-truncate d-block">{{ o.descricao_problema[:44] }}</small>
+              </div>
+              <span class="st st-{{ o.status }}">{{ o.status.replace('_',' ') }}</span>
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center text-mudo py-4" style="font-size:.86rem">
+          Você ainda não abriu nenhuma OS.<br>
+          <a href="{{ url_for('os.nova') }}" class="btn btn-sm btn-decio mt-2">
+            <i class="bi bi-plus-lg me-1"></i>Abrir OS</a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+const ctx = document.getElementById('grafico');
+new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: {{ serie|map(attribute='dia')|list|tojson }},
+    datasets: [{
+      data: {{ serie|map(attribute='total')|list|tojson }},
+      borderColor: '#28A353', backgroundColor: 'rgba(40,163,83,.13)',
+      fill: true, tension: .35, borderWidth: 2, pointRadius: 2
+    }]
+  },
+  options: {
+    plugins: { legend: { display: false } },
+    scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+  }
+});
+</script>
+{% endblock %}

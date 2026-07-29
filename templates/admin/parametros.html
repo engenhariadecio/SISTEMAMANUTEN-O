@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block titulo %}Parâmetros{% endblock %}
+{% block cabecalho %}Parâmetros do Sistema{% endblock %}
+{% block conteudo %}
+<div class="row justify-content-center"><div class="col-lg-7">
+<div class="card"><div class="card-header"><i class="bi bi-sliders me-1"></i> Configurações</div>
+  <div class="card-body">
+    <form method="post">
+      {% for p in itens %}
+      <div class="mb-3">
+        <label class="form-label">{{ p.chave.replace('_',' ')|capitalize }}</label>
+        <input name="p_{{ p.chave }}" class="form-control" value="{{ p.valor or '' }}">
+      </div>
+      {% endfor %}
+      <button class="btn btn-decio"><i class="bi bi-check-lg me-1"></i> Salvar parâmetros</button>
+    </form>
+    <hr>
+    <small class="text-mudo">
+      <strong>tolerancia_preventiva_dias</strong> — dias de tolerância após a data prevista; passando disso,
+      a preventiva conta como fora do prazo e não soma no indicador do mês seguinte.<br>
+      <strong>custo_hh_padrao</strong> — valor da hora de mão de obra usado no cálculo de custo das OS.
+    </small>
+  </div>
+</div>
+</div></div>
+{% endblock %}

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block titulo %}Manutenção em terceiros{% endblock %}
+{% block cabecalho %}Manutenções em Terceiros{% endblock %}
+{% block conteudo %}
+<div class="row g-3">
+  <div class="col-lg-4">
+    <div class="card"><div class="card-header"><i class="bi bi-truck me-1"></i> Novo registro</div>
+      <div class="card-body"><form method="post">
+        <div class="mb-2"><label class="form-label">Equipamento</label>
+          <select name="equipamento_id" class="form-select"><option value="">—</option>
+            {% for e in equipamentos %}<option value="{{ e.id }}">{{ e.codigo }} — {{ e.nome }}</option>{% endfor %}
+          </select></div>
+        <div class="mb-2"><label class="form-label">Empresa <span class="text-danger">*</span></label>
+          <input name="empresa" class="form-control" required></div>
+        <div class="mb-2"><label class="form-label">Tipo de serviço</label>
+          <select name="tipo_servico" class="form-select">
+            {% for t in ['Corretiva','Preventiva','Calibração','Inspeção','Reforma'] %}
+            <option>{{ t }}</option>{% endfor %}</select></div>
+        <div class="mb-2"><label class="form-label">Descrição</label>
+          <textarea name="descricao" class="form-control" rows="2"></textarea></div>
+        <div class="row g-2 mb-2">
+          <div class="col-6"><label class="form-label">Data de envio</label>
+            <input type="date" name="data_envio" class="form-control"></div>
+          <div class="col-6"><label class="form-label">Data de retorno</label>
+            <input type="date" name="data_retorno" class="form-control"></div>
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-6"><label class="form-label">Valor (R$)</label>
+            <input type="number" step="0.01" name="valor" class="form-control" value="0"></div>
+          <div class="col-6"><label class="form-label">Recebido por</label>
+            <input name="recebido_por" class="form-control"></div>
+        </div>
+        <button class="btn btn-decio w-100">Salvar</button>
+      </form></div>
+    </div>
+  </div>
+  <div class="col-lg-8">
+    <div class="card"><div class="card-body p-0">
+      <div class="table-responsive"><table class="table table-hover mb-0">
+        <thead><tr><th>Envio</th><th>Equipamento</th><th>Empresa</th><th>Serviço</th>
+          <th>Retorno</th><th class="text-end">Valor</th><th>Recebido por</th></tr></thead>
+        <tbody>
+          {% for t in itens %}
+          <tr><td><small>{{ t.data_envio|data }}</small></td>
+            <td><small class="fw-semibold">{{ t.eq_codigo or '—' }}</small><br>
+              <small class="text-mudo">{{ (t.eq_nome or '')[:24] }}</small></td>
+            <td class="fw-semibold">{{ t.empresa }}</td>
+            <td><span class="pill">{{ t.tipo_servico }}</span><br>
+              <small class="text-mudo">{{ (t.descricao or '')[:30] }}</small></td>
+            <td><small>{{ t.data_retorno|data }}</small></td>
+            <td class="text-end">{{ t.valor|moeda }}</td>
+            <td><small>{{ t.recebido_por or '—' }}</small></td></tr>
+          {% else %}
+          <tr><td colspan="7" class="text-center text-mudo py-4">Nenhum registro.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table></div>
+    </div></div>
+  </div>
+</div>
+{% endblock %}

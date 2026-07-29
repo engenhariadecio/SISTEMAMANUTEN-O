@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+{% block titulo %}Plano de materiais{% endblock %}
+{% block cabecalho %}Plano de Materiais das Preventivas{% endblock %}
+{% block titulo_mob %}Plano materiais{% endblock %}
+
+{% set ROTULO = {'disponivel':'Em estoque','parcial':'Parcial',
+                 'sem_estoque':'Sem estoque','nao_cadastrado':'Não cadastrado'} %}
+{% set COR = {'disponivel':'success','parcial':'warning',
+              'sem_estoque':'danger','nao_cadastrado':'secondary'} %}
+
+{% block conteudo %}
+
+<!-- ══ FILTROS ══ -->
+<div class="card mb-3">
+  <div class="card-body py-3">
+    <form method="get" id="fFiltro">
+      <div class="row g-2 align-items-end">
+        <div class="col-auto">
+          <label class="form-label mb-1">Horizonte</label>
+          <div class="btn-group btn-group-sm d-block">
+            {% for d in [7, 15, 30, 60, 90, 180] %}
+            <button name="dias" value="{{ d }}"
+                    class="btn btn-{{ 'decio' if dias == d and not request.args.get('ini') else 'outline-secondary' }}">
+              {{ d }} dias</button>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="col-auto">
+          <label class="form-label mb-1">Ou informe os dias</label>
+          <div class="input-group input-group-sm" style="width:150px">
+            <input type="number" name="dias" min="1" max="730" value="{{ dias }}" class="form-control">
+            <span class="input-group-text">dias</span>
+          </div>
+        </div>
+
+        <div class="col-auto">
+          <label class="form-label mb-1">Ou um período exato</label>
+          <div class="input-group input-group-sm" style="width:290px">
+            <input type="date" name="ini" value="{{ request.args.get('ini','') }}" class="form-control">
+            <span class="input-group-text">até</span>
+            <input type="date" name="fim" value="{{ request.args.get('fim','') }}" class="form-control">
+          </div>
+        </div>
+
+        <div class="col-auto">
+          <label class="form-label mb-1">Mostrar</label>
+          <select name="situacao" class="form-select form-select-sm"
+                  onchange="this.form.submit()" style="width:170px">
+            <option value="">Todos os itens</option>
+            <option value="faltantes" {{ 'selected' if situacao=='faltantes' }}>Só o que falta</option>
+            <option value="sem_estoque" {{ 'selected' if situacao=='sem_estoque' }}>Sem estoque</option>
+            <option value="parcial" {{ 'selected' if situacao=='parcial' }}>Parcial</option>
+            <option value="nao_cadastrado" {{ 'selected' if situacao=='nao_cadastrado' }}>Não cadastrado</option>
+            <option value="disponivel" {{ 'selected' if situacao=='disponivel' }}>Em estoque</option>
+          </select>
+        </div>
+
+        <div class="col-auto">
+          <button class="btn btn-sm btn-decio"><i class="bi bi-arrow-repeat me-1"></i>Rodar plano</button>
+        </div>
+      </div>
+
+      <div class="d-flex flex-wrap gap-3 mt-3 pt-3 border-top align-items-center">
+        <div class="form-check form-switch mb-0">
+          <input class="form-check-input" type="checkbox" name="considerar_min" value="1"
+                 id="cmin" {{ 'checked' if considerar_min }} onchange="this.form.submit()">
+          <label class="form-check-label" for="cmin" style="font-size:.85rem">
+            Reservar o estoque mínimo
+            <i class="bi bi-question-circle text-mudo" data-bs-toggle="tooltip"
+               title="O disponível passa a descontar o estoque mínimo, evitando consumir a reserva de segurança."></i>
+          </label>
+        </div>
+        <div class="form-check form-switch mb-0">
+          <input class="form-check-input" type="checkbox" name="todas" value="1"
+                 id="ctodas" {{ 'checked' if not apenas_pendentes }} onchange="this.form.submit()">
+          <label class="form-check-label" for="ctodas" style="font-size:.85rem">
+            Incluir preventivas já realizadas no período</label>
+        </div>
+        <div class="ms-auto text-mudo" style="font-size:.85rem">
+          <i class="bi bi-calendar3 me-1"></i>
+          <strong>{{ d_ini|data }}</strong> a <strong>{{ d_fim|data }}</strong>
+          · {{ semanas|length }} semana(s) da grade
+          · {{ resumo.preventivas }} preventiva(s) programada(s)
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ══ RESUMO ══ -->
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-2"><div class="card"><div class="kpi">
+    <div class="icone i-azul"><i class="bi bi-box-seam-fill"></i></div>
+    <div><div class="valor">{{ resumo.itens }}</div><div class="rotulo">Itens no plano</div></div>
+  </div></div></div>
+  <div class="col-6 col-lg-2"><div class="card"><div class="kpi">
+    <div class="icone i-verde"><i class="bi bi-check-circle-fill"></i></div>
+    <div><div class="valor">{{ resumo.disponivel }}</div><div class="rotulo">Em estoque</div></div>
+  </div></div></div>
+  <div class="col-6 col-lg-2"><div class="card"><div class="kpi">
+    <div class="icone i-amb"><i class="bi bi-pie-chart-fill"></i></div>
+    <div><div class="valor">{{ resumo.parcial }}</div><div class="rotulo">Saldo parcial</div></div>
+  </div></div></div>
+  <div class="col-6 col-lg-2"><div class="card"><div class="kpi">
+    <div class="icone i-verm"><i class="bi bi-x-circle-fill"></i></div>
+    <div><div class="valor">{{ resumo.sem_estoque }}</div><div class="rotulo">Sem estoque</div></div>
+  </div></div></div>
+  <div class="col-6 col-lg-2"><div class="card"><div class="kpi">
+    <div class="icone i-cinza"><i class="bi bi-question-circle-fill"></i></div>
+    <div><div class="valor">{{ resumo.nao_cadastrado }}</div><div class="rotulo">Não cadastrados</div></div>
+  </div></div></div>
+  <div class="col-6 col-lg-2"><div class="card"><div class="kpi">
+    <div class="icone i-info"><i class="bi bi-cash-coin"></i></div>
+    <div><div class="valor" style="font-size:1.25rem">{{ resumo.custo_total|moeda }}</div>
+      <div class="rotulo">Custo estimado</div></div>
+  </div></div></div>
+</div>
+
+{% if resumo.a_comprar %}
+<div class="alert alert-warning d-flex align-items-center gap-2">
+  <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+  <div><strong>{{ resumo.a_comprar }} item(ns) precisam de compra</strong>
+    para atender as preventivas até {{ d_fim|data }}.
+    {% if resumo.nao_cadastrado %}
+    {{ resumo.nao_cadastrado }} ainda não têm cadastro de material no sistema.{% endif %}</div>
+</div>
+{% endif %}
+
+<!-- ══ LISTA ══ -->
+<form method="post" action="{{ url_for('prev.plano_materiais_solicitar') }}?{{ request.query_string.decode() }}">
+<input type="hidden" name="considerar_min" value="{{ '1' if considerar_min else '0' }}">
+<div class="card">
+  <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <span><i class="bi bi-list-ul me-1"></i> {{ linhas|length }} material(is)</span>
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-sm btn-decio">
+        <i class="bi bi-cart-plus me-1"></i> Solicitar selecionados</button>
+      <a href="{{ url_for('prev.plano_materiais_exportar') }}?{{ request.query_string.decode() }}"
+         class="btn btn-sm btn-outline-secondary"><i class="bi bi-download me-1"></i> Exportar CSV</a>
+      <button type="button" class="btn btn-sm btn-outline-secondary no-print" onclick="window.print()">
+        <i class="bi bi-printer"></i></button>
+    </div>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle">
+        <thead><tr>
+          <th style="width:36px" class="no-print"><input type="checkbox" id="todos" class="form-check-input"></th>
+          <th>Código</th><th>Descrição</th><th>UMB</th><th>Depósito</th>
+          <th class="text-end">Necessário</th><th class="text-end">Saldo atual</th>
+          {% if considerar_min %}<th class="text-end">Disponível</th>{% endif %}
+          <th class="text-end">Falta</th><th>Situação</th><th>1ª preventiva</th>
+          <th class="text-end">Custo</th><th style="width:34px" class="no-print"></th>
+        </tr></thead>
+        <tbody>
+          {% for l in linhas %}
+          <tr class="{{ 'table-danger' if l.situacao == 'sem_estoque'
+                        else 'table-warning' if l.situacao == 'parcial'
+                        else 'table-secondary' if l.situacao == 'nao_cadastrado' }}">
+            <td class="no-print">
+              {% if l.falta > 0 %}
+              <input type="checkbox" name="codigo" value="{{ l.codigo }}" class="form-check-input sel">
+              {% endif %}
+            </td>
+            <td class="fw-semibold">{{ l.codigo }}
+              {% if l.critico %}<i class="bi bi-star-fill text-warning ms-1" title="Peça crítica"></i>{% endif %}</td>
+            <td style="font-size:.85rem">{{ (l.descricao or '—')[:46] }}
+              {% if l.localizacao %}<small class="text-mudo d-block">{{ l.localizacao }}</small>{% endif %}</td>
+            <td><small>{{ l.umb }}</small></td>
+            <td><span class="pill">{{ l.tipo }}</span></td>
+            <td class="text-end fw-bold">{{ l.necessario|num(0) }}</td>
+            <td class="text-end">{{ l.saldo|num(0) }}
+              {% if l.estoque_min %}<small class="text-mudo d-block">mín. {{ l.estoque_min|num(0) }}</small>{% endif %}</td>
+            {% if considerar_min %}<td class="text-end">{{ l.disponivel|num(0) }}</td>{% endif %}
+            <td class="text-end fw-bold {{ 'text-danger' if l.falta > 0 }}">
+              {{ l.falta|num(0) if l.falta > 0 else '—' }}</td>
+            <td><span class="badge bg-{{ COR[l.situacao] }}">{{ ROTULO[l.situacao] }}</span></td>
+            <td><small>{{ l.primeira_data|data }}</small>
+              <small class="text-mudo d-block">{{ l.n_preventivas }} preventiva(s)</small></td>
+            <td class="text-end">
+              {% if l.custo_falta %}{{ l.custo_falta|moeda }}{% else %}<span class="text-mudo">—</span>{% endif %}</td>
+            <td class="text-end no-print">
+              <button type="button" class="btn btn-sm btn-link p-0" data-bs-toggle="collapse"
+                      data-bs-target="#det{{ loop.index }}" title="Onde é usado">
+                <i class="bi bi-chevron-down"></i></button></td>
+          </tr>
+          <tr class="collapse" id="det{{ loop.index }}">
+            <td colspan="13" class="bg-light py-2">
+              <div class="ps-3">
+                <div class="fw-bold mb-2" style="font-size:.78rem;text-transform:uppercase;color:#8B94A3">
+                  Preventivas que consomem este material</div>
+                <div class="table-responsive">
+                  <table class="table table-sm mb-0" style="font-size:.8rem">
+                    <thead><tr><th>Equipamento</th><th>Plano</th><th class="text-center">Semana</th>
+                      <th>Data prevista</th><th>Período</th><th class="text-end">Qtd</th><th></th></tr></thead>
+                    <tbody>
+                      {% for d in detalhe.get(l.codigo, []) %}
+                      <tr>
+                        <td><span class="crit" style="background:{{ CRIT.get(d.criticidade, {}).get('cor', '#5B93C4') }}"
+                                  style="width:17px;height:17px;font-size:.6rem">{{ d.criticidade }}</span>
+                          <strong>{{ d.eq_codigo }}</strong>
+                          <span class="text-mudo">{{ d.eq_nome[:26] }}</span></td>
+                        <td>{{ (d.plano or '')[:30] }}</td>
+                        <td class="text-center">{{ d.semana }}</td>
+                        <td>{{ d.data|data }}</td>
+                        <td><span class="pill">{{ d.periodicidade }}</span></td>
+                        <td class="text-end fw-bold">{{ d.qt|num(0) }}</td>
+                        <td class="text-end">
+                          {% if d.om_id %}<a href="{{ url_for('prev.om', om_id=d.om_id) }}"
+                             class="btn btn-sm btn-link p-0">OM</a>{% endif %}</td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="13" class="text-center text-mudo py-5">
+            <i class="bi bi-inbox fs-1 d-block mb-2 opacity-50"></i>
+            Nenhuma necessidade de material no período.<br>
+            <small>Verifique se há preventivas programadas na
+              <a href="{{ url_for('prev.grade') }}">grade de 52 semanas</a> e se os
+              <a href="{{ url_for('prev.planos') }}">planos</a> têm materiais vinculados.</small>
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</form>
+{% endblock %}
+
+{% block js %}
+<script>
+const t = document.getElementById('todos');
+if (t) t.addEventListener('change', () =>
+  document.querySelectorAll('.sel').forEach(c => c.checked = t.checked));
+
+document.querySelectorAll('#fFiltro input[type=date]').forEach(el =>
+  el.addEventListener('change', () => {
+    const n = document.querySelector('#fFiltro input[name=dias][type=number]');
+    if (n) n.value = '';
+  }));
+
+[...document.querySelectorAll('[data-bs-toggle="tooltip"]')]
+  .forEach(el => new bootstrap.Tooltip(el));
+</script>
+{% endblock %}

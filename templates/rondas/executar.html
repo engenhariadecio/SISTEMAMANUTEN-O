@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block titulo %}Ronda {{ e.data }}{% endblock %}
+{% block cabecalho %}{{ e.ronda }} — {{ e.data|data }}{% endblock %}
+{% block titulo_mob %}Ronda{% endblock %}
+
+{% block conteudo %}
+{% set editavel = e.status == 'em_andamento' %}
+<form method="post" enctype="multipart/form-data">
+<div class="row g-3">
+  <div class="col-xl-9">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-signpost-split-fill me-1"></i>
+        Pontos de verificação ({{ pontos|length }})</div>
+      <div class="card-body">
+        {% for p in pontos %}
+        <div class="cl-item {{ 'ok' if p.resposta == 'OK' else 'nok' if p.resposta == 'NOK' }}">
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+            <div class="cl-desc flex-grow-1">
+              <span class="pill me-1">{{ p.ordem }}</span>{{ p.descricao }}
+            </div>
+            <div class="btn-group btn-group-sm">
+              {% for op, cor in [('OK','success'),('NOK','danger'),('NA','secondary')] %}
+              <input type="radio" class="btn-check" name="ponto_{{ p.id }}" id="p{{ p.id }}{{ op }}"
+                     value="{{ op }}" {{ 'checked' if p.resposta == op }} {{ 'disabled' if not editavel }}>
+              <label class="btn btn-outline-{{ cor }}" for="p{{ p.id }}{{ op }}">{{ op }}</label>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="row g-2">
+            <div class="col-md-8">
+              <input name="obs_{{ p.id }}" class="form-control form-control-sm"
+                     placeholder="Observação…" value="{{ p.observacao or '' }}" {{ 'disabled' if not editavel }}>
+            </div>
+            <div class="col-md-4 d-flex gap-2 align-items-center">
+              {% if editavel %}
+              <input type="file" name="foto_{{ p.id }}" accept="image/*" capture="environment"
+                     class="form-control form-control-sm">
+              {% endif %}
+              {% if p.tem_foto %}
+              <a href="{{ url_for('rondas.foto', resp_id=p.resp_id) }}" target="_blank"
+                 class="btn btn-sm btn-outline-secondary"><i class="bi bi-image"></i></a>
+              {% endif %}
+            </div>
+          </div>
+          {% if p.os_gerada %}
+          <div class="mt-2"><span class="pill text-danger">
+            <i class="bi bi-arrow-right-circle-fill me-1"></i>OS de corretiva gerada</span></div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3">
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-chat-left-text me-1"></i> Observações gerais</div>
+      <div class="card-body">
+        <textarea name="observacoes" class="form-control" rows="5"
+                  {{ 'disabled' if not editavel }}>{{ e.observacoes or '' }}</textarea>
+      </div>
+    </div>
+    {% if editavel %}
+    <div class="d-grid gap-2">
+      <button name="acao" value="salvar" class="btn btn-outline-primary">
+        <i class="bi bi-save me-1"></i> Salvar</button>
+      <button name="acao" value="concluir" class="btn btn-verde btn-lg"
+              onclick="return confirm('Concluir a ronda? Pontos marcados como NOK gerarão OS de corretiva planejada.')">
+        <i class="bi bi-check-lg me-1"></i> Concluir ronda</button>
+    </div>
+    <div class="alert alert-info mt-3" style="font-size:.82rem">
+      <i class="bi bi-info-circle-fill me-1"></i>
+      Cada ponto marcado como <strong>NOK</strong> abre automaticamente uma OS de
+      corretiva planejada, com a foto anexada.
+    </div>
+    {% endif %}
+  </div>
+</div>
+</form>
+{% endblock %}

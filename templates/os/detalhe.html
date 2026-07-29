@@ -1,0 +1,417 @@
+{% extends "base.html" %}
+{% block titulo %}OS #{{ o.numero }}{% endblock %}
+{% block cabecalho %}Ordem de Serviço #{{ o.numero }}{% endblock %}
+{% block titulo_mob %}OS #{{ o.numero }}{% endblock %}
+
+{% block conteudo %}
+
+<!-- ── Cabeçalho ── -->
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="d-flex flex-wrap align-items-start gap-3">
+      <span class="crit" style="background:{{ CRIT.get(o.criticidade, {}).get('cor', '#5B93C4') }}" style="width:38px;height:38px;font-size:1.05rem">{{ o.criticidade }}</span>
+      <div class="flex-grow-1">
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+          <h5 class="mb-0 fw-bold">{{ o.eq_codigo or o.equipamento_outro or 'Equipamento não cadastrado' }}</h5>
+          <span class="st st-{{ o.status }}">{{ STATUS_LABEL.get(o.status, o.status) }}</span>
+          {% if o.maquina_parada %}<span class="pill text-danger"><i class="bi bi-exclamation-octagon-fill"></i> Máquina parada</span>{% endif %}
+          {% if o.tipo_manutencao != 'corretiva' %}<span class="pill">{{ o.tipo_manutencao|capitalize }}</span>{% endif %}
+          {% if o.origem != 'manual' %}<span class="pill">Origem: {{ o.origem }}</span>{% endif %}
+        </div>
+        <div class="text-mudo" style="font-size:.86rem">{{ o.eq_nome or '' }}</div>
+        <div class="mt-2 d-flex flex-wrap gap-3" style="font-size:.82rem">
+          <span><i class="bi bi-person me-1 text-mudo"></i>{{ o.solicitante or '—' }}</span>
+          <span><i class="bi bi-calendar3 me-1 text-mudo"></i>{{ o.data_abertura|dt }}</span>
+          <span><i class="bi bi-geo-alt me-1 text-mudo"></i>{{ o.estabelecimento or '—' }} · {{ o.setor or o.tipo }}</span>
+          <span><i class="bi bi-tools me-1 text-mudo"></i>{{ o.responsavel or 'Sem responsável' }}</span>
+        </div>
+      </div>
+      <div class="text-end">
+        <div class="rotulo text-mudo" style="font-size:.7rem;text-transform:uppercase">Tempo trabalhado</div>
+        <div class="fw-bold fs-5">{{ o.tempo_trabalho_seg|dur }}</div>
+      </div>
+    </div>
+
+    <hr class="my-3">
+    <div class="fw-bold mb-1" style="font-size:.8rem;text-transform:uppercase;color:#8B94A3">Problema relatado</div>
+    <p class="mb-0">{{ o.descricao_problema }}</p>
+
+    {% if o.status == 'reprovada' and o.comentario_reprova %}
+    <div class="alert alert-danger mt-3 mb-0">
+      <strong><i class="bi bi-x-octagon-fill me-1"></i>Reprovada pelo solicitante:</strong>
+      {{ o.comentario_reprova }}
+    </div>
+    {% endif %}
+
+    {% if o.acao_realizada %}
+    <div class="alert alert-success mt-3 mb-0">
+      <strong><i class="bi bi-check-circle-fill me-1"></i>Ação realizada:</strong> {{ o.acao_realizada }}
+      {% if o.defeito %}<div class="mt-1" style="font-size:.84rem">
+        <span class="pill">Defeito: {{ o.defeito }}</span>
+        <span class="pill">Causa: {{ o.causa }}</span></div>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-xl-7">
+
+    <!-- ── CRONÔMETRO / AÇÕES ── -->
+    {% if pode('os_executar') and o.status not in ('concluida','cancelada') %}
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-stopwatch-fill me-1"></i> Apontamento de tempo</div>
+      <div class="card-body">
+        <div class="crono-box crono-{{ aberto.tipo if aberto else 'parado' }} text-center mb-3">
+          <div class="cronometro" id="crono">00:00:00</div>
+          <div class="fw-bold mt-1" style="font-size:.86rem">
+            {{ TIPOS_TEMPO.get(aberto.tipo, '') if aberto else 'Cronômetro parado' }}
+          </div>
+        </div>
+
+        <div class="row g-2">
+          {% if o.status in ('aberta','reprovada') %}
+            <div class="col-12">
+              <form method="post" action="{{ url_for('os.acao', os_id=o.id, acao='iniciar') }}">
+                <button class="btn btn-verde w-100 btn-lg">
+                  <i class="bi bi-play-fill me-1"></i> Iniciar atendimento</button>
+              </form>
+            </div>
+          {% elif o.status == 'em_andamento' %}
+            <div class="col-6 col-md-3">
+              <form method="post" action="{{ url_for('os.acao', os_id=o.id, acao='pausar') }}">
+                <button class="btn btn-outline-warning w-100"><i class="bi bi-pause-fill d-block fs-5"></i>Pausar</button>
+              </form>
+            </div>
+            <div class="col-6 col-md-3">
+              <form method="post" action="{{ url_for('os.acao', os_id=o.id, acao='almoco') }}">
+                <button class="btn btn-outline-info w-100"><i class="bi bi-cup-hot-fill d-block fs-5"></i>Almoço</button>
+              </form>
+            </div>
+            <div class="col-6 col-md-3">
+              <form method="post" action="{{ url_for('os.acao', os_id=o.id, acao='aguardando_peca') }}">
+                <button class="btn btn-outline-primary w-100"><i class="bi bi-box-seam d-block fs-5"></i>Aguard. peça</button>
+              </form>
+            </div>
+            <div class="col-6 col-md-3">
+              <button class="btn btn-verde w-100" data-bs-toggle="modal" data-bs-target="#modalConcluir">
+                <i class="bi bi-check-lg d-block fs-5"></i>Concluir</button>
+            </div>
+          {% elif o.status in ('pausada','aguardando_peca') %}
+            <div class="col-8">
+              <form method="post" action="{{ url_for('os.acao', os_id=o.id, acao='retomar') }}">
+                <button class="btn btn-verde w-100 btn-lg"><i class="bi bi-play-fill me-1"></i> Retomar</button>
+              </form>
+            </div>
+            <div class="col-4">
+              <button class="btn btn-outline-success w-100 btn-lg" data-bs-toggle="modal" data-bs-target="#modalConcluir">
+                <i class="bi bi-check-lg me-1"></i>Concluir</button>
+            </div>
+          {% elif o.status == 'aguardando_aprovacao' %}
+            <div class="col-12">
+              <div class="alert alert-info mb-0">
+                <i class="bi bi-hourglass-split me-1"></i>
+                Serviço concluído em {{ o.data_conclusao|dt }}. Aguardando aprovação de
+                <strong>{{ o.solicitante }}</strong>.
+              </div>
+            </div>
+          {% endif %}
+        </div>
+
+        {% if o.status not in ('aguardando_aprovacao',) %}
+        <div class="mt-3 pt-3 border-top d-flex flex-wrap gap-2">
+          <form method="post" action="{{ url_for('os.assumir', os_id=o.id) }}" class="d-flex gap-2 flex-grow-1">
+            <select name="responsavel_id" class="form-select form-select-sm">
+              {% for m in manutentores %}
+              <option value="{{ m.id }}" {{ 'selected' if m.id == o.responsavel_id }}>{{ m.nome }}</option>
+              {% endfor %}
+            </select>
+            <button class="btn btn-sm btn-outline-secondary text-nowrap">
+              <i class="bi bi-person-check me-1"></i>Atribuir</button>
+          </form>
+          <a href="{{ url_for('sol.nova', os_id=o.id) }}" class="btn btn-sm btn-outline-primary text-nowrap">
+            <i class="bi bi-cart-plus me-1"></i>Solicitar material</a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- ── APROVAÇÃO DO SOLICITANTE ── -->
+    {% if o.status == 'aguardando_aprovacao' and (o.solicitante_id == u.id or u.perfil in ('admin','supervisao','lider')) %}
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-patch-check-fill me-1"></i> Aprovação do serviço</div>
+      <div class="card-body">
+        <p style="font-size:.88rem">O serviço foi concluído. Confirme se o problema foi resolvido.</p>
+        <form method="post" action="{{ url_for('os.aprovar', os_id=o.id) }}">
+          <textarea name="comentario" class="form-control mb-3" rows="3"
+                    placeholder="Comentário (obrigatório em caso de reprovação — descreva o que continua ocorrendo)"></textarea>
+          <div class="d-flex gap-2">
+            <button name="decisao" value="aprovar" class="btn btn-verde flex-grow-1 btn-lg">
+              <i class="bi bi-check-circle-fill me-1"></i> Aprovar e finalizar</button>
+            <button name="decisao" value="reprovar" class="btn btn-outline-danger flex-grow-1 btn-lg">
+              <i class="bi bi-x-circle-fill me-1"></i> Reprovar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if o.status == 'reprovada' and pode('os_executar') %}
+    <form method="post" action="{{ url_for('os.reabrir', os_id=o.id) }}" class="mb-3">
+      <button class="btn btn-warning w-100"><i class="bi bi-arrow-clockwise me-1"></i>
+        Retomar tratamento da reprovação</button>
+    </form>
+    {% endif %}
+
+    <!-- ── MATERIAIS ── -->
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-box-seam-fill me-1"></i> Peças e materiais aplicados</div>
+      <div class="card-body p-0">
+        {% if materiais %}
+        <table class="table mb-0">
+          <thead><tr><th>Código</th><th>Descrição</th><th class="text-end">Qtd</th>
+            <th>Origem</th><th>Baixa</th>{% if pode('os_executar') %}<th></th>{% endif %}</tr></thead>
+          <tbody>
+            {% for m in materiais %}
+            <tr>
+              <td class="fw-semibold">{{ m.codigo or '—' }}</td>
+              <td>{{ m.descricao }}</td>
+              <td class="text-end">{{ m.quantidade|num(0) }}</td>
+              <td><span class="pill">{{ m.origem }}</span></td>
+              <td>{% if m.baixado %}<i class="bi bi-check-circle-fill text-success"></i>
+                  {% else %}<span class="text-mudo">—</span>{% endif %}</td>
+              {% if pode('os_executar') %}
+              <td class="text-end">
+                <form method="post" action="{{ url_for('os.del_material', os_id=o.id, mid=m.id) }}">
+                  <button class="btn btn-sm btn-link text-danger p-0"><i class="bi bi-trash"></i></button>
+                </form>
+              </td>
+              {% endif %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="text-center text-mudo py-3" style="font-size:.86rem">Nenhum material registrado.</div>
+        {% endif %}
+      </div>
+      {% if pode('os_executar') and o.status not in ('concluida','cancelada') %}
+      <div class="card-footer bg-white">
+        <form method="post" action="{{ url_for('os.add_material', os_id=o.id) }}" class="row g-2 align-items-end">
+          <div class="col-md-3">
+            <label class="form-label mb-1">Código</label>
+            <input name="codigo" class="form-control form-control-sm" id="matCodigo" autocomplete="off">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label mb-1">Descrição</label>
+            <input name="descricao" class="form-control form-control-sm" id="matDesc">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label mb-1">Qtd</label>
+            <input name="quantidade" type="number" step="0.001" value="1" class="form-control form-control-sm">
+          </div>
+          <div class="col-md-3 d-flex gap-2 align-items-center">
+            <div class="form-check mb-0">
+              <input class="form-check-input" type="checkbox" name="baixar" id="baixar" checked>
+              <label class="form-check-label small" for="baixar">Dar baixa</label>
+            </div>
+            <button class="btn btn-sm btn-decio flex-grow-1"><i class="bi bi-plus-lg"></i></button>
+          </div>
+          <div class="col-12"><small class="text-mudo" id="matInfo"></small></div>
+        </form>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- ── SOLICITAÇÕES DE MATERIAL VINCULADAS ── -->
+    {% if solicitacoes %}
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-cart-fill me-1"></i> Solicitações de material desta OS</div>
+      <div class="card-body p-0">
+        <table class="table mb-0">
+          <thead><tr><th>SM</th><th>Item</th><th class="text-end">Qtd</th><th>Situação</th></tr></thead>
+          <tbody>
+            {% for s in solicitacoes %}
+            <tr style="cursor:pointer" onclick="location.href='{{ url_for('sol.detalhe', sid=s.id) }}'">
+              <td class="fw-bold">#{{ s.numero }}</td>
+              <td>{{ s.descricao[:44] }}</td>
+              <td class="text-end">{{ s.quantidade|num(0) }}</td>
+              <td><span class="pill">{{ s.situacao }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- ── COLUNA DIREITA ── -->
+  <div class="col-xl-5">
+
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-clock-history me-1"></i> Apontamentos da OS</div>
+      <div class="card-body">
+        <div class="timeline">
+          {% for a in apontamentos %}
+          <div class="tl-item {{ 'tl-verde' if a.tipo in ('conclusao','aprovacao','inicio')
+                                 else 'tl-verm' if a.tipo in ('reprovacao','cancelamento')
+                                 else 'tl-amb' if a.tipo in ('pausa','almoco','aguardando_peca') }}">
+            <div class="tl-hora">{{ a.criado_em|dt }} · {{ a.usuario or 'Sistema' }}</div>
+            <div class="tl-texto">{{ a.descricao }}</div>
+          </div>
+          {% endfor %}
+        </div>
+        <form method="post" action="{{ url_for('os.comentar', os_id=o.id) }}" class="mt-2">
+          <div class="input-group">
+            <input name="comentario" class="form-control form-control-sm" placeholder="Adicionar comentário…" required>
+            <button class="btn btn-sm btn-decio"><i class="bi bi-send-fill"></i></button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    {% if totais %}
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-hourglass-split me-1"></i> Distribuição do tempo</div>
+      <div class="card-body">
+        {% for tipo, seg in totais.items() %}
+        <div class="d-flex justify-content-between align-items-center mb-1" style="font-size:.86rem">
+          <span>{{ TIPOS_TEMPO.get(tipo, tipo) }}</span>
+          <strong>{{ seg|dur }}</strong>
+        </div>
+        {% endfor %}
+        <hr class="my-2">
+        <div class="d-flex justify-content-between" style="font-size:.86rem">
+          <span class="text-mudo">Custo de peças</span><strong>{{ o.custo_pecas|moeda }}</strong>
+        </div>
+        <div class="d-flex justify-content-between" style="font-size:.86rem">
+          <span class="text-mudo">Custo de mão de obra</span><strong>{{ o.custo_hh|moeda }}</strong>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="card">
+      <div class="card-header"><i class="bi bi-paperclip me-1"></i> Anexos</div>
+      <div class="card-body">
+        {% if anexos %}
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          {% for a in anexos %}
+          <a href="{{ url_for('os.baixar_anexo', anexo_id=a.id) }}" target="_blank"
+             class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-{{ 'image' if a.mime and 'image' in a.mime else 'file-earmark' }} me-1"></i>
+            {{ a.nome[:26] }}
+          </a>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-mudo mb-3" style="font-size:.86rem">Nenhum anexo.</p>
+        {% endif %}
+        <form method="post" action="{{ url_for('os.anexar', os_id=o.id) }}" enctype="multipart/form-data">
+          <div class="input-group input-group-sm">
+            <input type="file" name="anexos" class="form-control" multiple required accept="image/*,video/*,.pdf">
+            <button class="btn btn-outline-secondary"><i class="bi bi-upload"></i></button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL CONCLUIR ── -->
+<div class="modal fade" id="modalConcluir" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <form method="post" action="{{ url_for('os.concluir', os_id=o.id) }}" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold">Concluir OS #{{ o.numero }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Tipo de defeito <span class="text-danger">*</span></label>
+            <select name="defeito_id" class="form-select" required>
+              <option value="">— Selecione —</option>
+              {% for d in defeitos %}<option value="{{ d.id }}">{{ d.nome }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Causa <span class="text-danger">*</span></label>
+            <select name="causa_id" class="form-select" required>
+              <option value="">— Selecione —</option>
+              {% for c in causas %}<option value="{{ c.id }}">{{ c.nome }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Ação realizada <span class="text-danger">*</span></label>
+            <textarea name="acao_realizada" class="form-control" rows="4" required
+                      placeholder="Descreva o que foi feito para resolver o problema…"></textarea>
+          </div>
+          <div class="col-12">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" name="liberar_equipamento"
+                     id="liberar" {{ 'checked' if o.maquina_parada }}>
+              <label class="form-check-label" for="liberar">
+                Liberar o equipamento para produção (status “operando”)</label>
+            </div>
+          </div>
+        </div>
+        <div class="alert alert-info mt-3 mb-0" style="font-size:.84rem">
+          <i class="bi bi-info-circle-fill me-1"></i>
+          Ao concluir, o solicitante <strong>{{ o.solicitante }}</strong> será notificado para
+          aprovar ou reprovar o serviço.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-verde"><i class="bi bi-check-lg me-1"></i> Concluir OS</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block js %}
+<script>
+// ── Cronômetro em tempo real ──
+{% if aberto %}
+let base = {{ ((aberto.inicio and 0) or 0) }};
+let inicio = Date.now();
+let decorrido = 0;
+fetch("{{ url_for('api.cronometro', os_id=o.id) }}")
+  .then(r => r.json())
+  .then(d => { if (d.rodando) { decorrido = d.parcial; tick(); setInterval(tick, 1000); } });
+function tick() {
+  const s = decorrido + Math.floor((Date.now() - inicio) / 1000);
+  const h = String(Math.floor(s/3600)).padStart(2,'0');
+  const m = String(Math.floor(s%3600/60)).padStart(2,'0');
+  const seg = String(s%60).padStart(2,'0');
+  document.getElementById('crono').textContent = `${h}:${m}:${seg}`;
+}
+{% else %}
+document.getElementById('crono') && (document.getElementById('crono').textContent = '00:00:00');
+{% endif %}
+
+// ── Busca de material por código ──
+const mc = document.getElementById('matCodigo');
+if (mc) {
+  mc.addEventListener('blur', () => {
+    const c = mc.value.trim();
+    if (!c) return;
+    fetch(`{{ url_for('mat.api_material', codigo='__C__') }}`.replace('__C__', encodeURIComponent(c)))
+      .then(r => r.json())
+      .then(d => {
+        const info = document.getElementById('matInfo');
+        if (d.ok) {
+          document.getElementById('matDesc').value = d.descricao;
+          info.innerHTML = `<i class="bi bi-info-circle"></i> ${d.descricao} — saldo <strong>${d.saldo}</strong> ${d.unidade} (${d.tipo})`;
+        } else {
+          info.innerHTML = '<span class="text-warning"><i class="bi bi-exclamation-triangle"></i> Código não cadastrado — será registrado como material externo.</span>';
+        }
+      });
+  });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block titulo %}Erro {{ codigo }}{% endblock %}
+{% block cabecalho %}Ops…{% endblock %}
+{% block conteudo %}
+<div class="card"><div class="card-body text-center py-5">
+  <div style="font-size:3.4rem;font-weight:800;color:#10477D;letter-spacing:-.04em">{{ codigo }}</div>
+  <p class="text-mudo mb-4">{{ msg }}</p>
+  <a href="{{ url_for('home.index') }}" class="btn btn-decio"><i class="bi bi-house-fill me-1"></i> Voltar ao painel</a>
+</div></div>
+{% endblock %}

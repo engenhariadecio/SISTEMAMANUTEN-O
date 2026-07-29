@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block titulo %}Novo plano{% endblock %}
+{% block cabecalho %}Novo Plano de Preventiva{% endblock %}
+{% block conteudo %}
+<div class="row justify-content-center"><div class="col-lg-7">
+<form method="post">
+  <div class="card">
+    <div class="card-header"><i class="bi bi-plus-circle-fill me-1"></i> Dados do plano</div>
+    <div class="card-body">
+      <div class="mb-3"><label class="form-label">Equipamento <span class="text-danger">*</span></label>
+        <select name="equipamento_id" class="form-select" required>
+          <option value="">— Selecione —</option>
+          {% for e in equipamentos %}<option value="{{ e.id }}">{{ e.codigo }} — {{ e.nome }}</option>{% endfor %}
+        </select></div>
+      <div class="mb-3"><label class="form-label">Nome do plano <span class="text-danger">*</span></label>
+        <input name="nome" class="form-control" required placeholder="Ex.: Manutenção preventiva — Queimadores a gás"></div>
+      <div class="mb-3"><label class="form-label">Código do documento</label>
+        <input name="codigo_doc" class="form-control" placeholder="Ex.: RQ-346"></div>
+      <div class="mb-3"><label class="form-label">Responsável</label>
+        <select name="responsavel_id" class="form-select">
+          <option value="">— Definir depois —</option>
+          {% for m in manutentores %}<option value="{{ m.id }}">{{ m.nome }}</option>{% endfor %}
+        </select></div>
+      <div class="row g-2">
+        <div class="col-md-5"><label class="form-label">Execução</label>
+          <select name="interna" class="form-select" id="interna">
+            <option value="1">Interna</option><option value="0">Terceiros</option>
+          </select></div>
+        <div class="col-md-7"><label class="form-label">Empresa (se terceiros)</label>
+          <input name="empresa" class="form-control"></div>
+      </div>
+    </div>
+    <div class="card-footer bg-white text-end">
+      <a href="{{ url_for('prev.planos') }}" class="btn btn-outline-secondary">Cancelar</a>
+      <button class="btn btn-decio">Criar plano</button>
+    </div>
+  </div>
+</form>
+</div></div>
+{% endblock %}

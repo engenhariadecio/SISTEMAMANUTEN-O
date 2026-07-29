@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block titulo %}Cadastro de materiais{% endblock %}
+{% block cabecalho %}Cadastro de Materiais{% endblock %}
+{% block conteudo %}
+<div class="row g-3">
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-{{ 'pencil-fill' if material else 'plus-circle-fill' }} me-1"></i>
+        {{ 'Editar material' if material else 'Novo material' }}</div>
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="acao" value="{{ 'editar' if material else 'novo' }}">
+          <div class="mb-3"><label class="form-label">Código <span class="text-danger">*</span></label>
+            <input name="codigo" class="form-control" required value="{{ material.codigo if material }}"
+                   {{ 'readonly' if material }}></div>
+          <div class="mb-3"><label class="form-label">Descrição <span class="text-danger">*</span></label>
+            <input name="descricao" class="form-control" required value="{{ material.descricao if material }}"></div>
+          <div class="row g-2 mb-3">
+            <div class="col-6"><label class="form-label">Unidade</label>
+              <input name="unidade" class="form-control" value="{{ material.unidade if material else 'UNI' }}"></div>
+            <div class="col-6"><label class="form-label">Depósito</label>
+              <select name="tipo" class="form-select">
+                {% for t in ['NLAG','HIBE','ERSA'] %}
+                <option value="{{ t }}" {{ 'selected' if material and material.tipo == t }}>{{ t }}</option>{% endfor %}
+              </select></div>
+          </div>
+          <div class="mb-3"><label class="form-label">Aplicação / máquina</label>
+            <input name="aplicacao" class="form-control" value="{{ material.aplicacao or '' if material }}"></div>
+          <div class="row g-2 mb-3">
+            <div class="col-4"><label class="form-label">Mínimo</label>
+              <input type="number" step="0.001" name="estoque_min" class="form-control"
+                     value="{{ material.estoque_min|num(0) if material else 0 }}"></div>
+            <div class="col-4"><label class="form-label">Máximo</label>
+              <input type="number" step="0.001" name="estoque_max" class="form-control"
+                     value="{{ material.estoque_max|num(0) if material else 0 }}"></div>
+            <div class="col-4"><label class="form-label">Valor unit.</label>
+              <input type="number" step="0.01" name="valor_unit" class="form-control"
+                     value="{{ material.valor_unit|num(2) if material else 0 }}"></div>
+          </div>
+          <div class="mb-3"><label class="form-label">Localização</label>
+            <input name="localizacao" class="form-control" placeholder="Prateleira / gaveta"
+                   value="{{ material.localizacao or '' if material }}"></div>
+          <div class="mb-3"><label class="form-label">Foto</label>
+            <input type="file" name="imagem" class="form-control" accept="image/*"></div>
+          <div class="form-check form-switch mb-2">
+            <input class="form-check-input" type="checkbox" name="critico" value="1" id="critico"
+                   {{ 'checked' if material and material.critico }}>
+            <label class="form-check-label" for="critico">Peça crítica (entra no alerta semanal)</label></div>
+          {% if material %}
+          <div class="form-check form-switch mb-3">
+            <input class="form-check-input" type="checkbox" name="ativo" value="1" id="ativo"
+                   {{ 'checked' if material.ativo }}>
+            <label class="form-check-label" for="ativo">Ativo</label></div>
+          {% endif %}
+          <button class="btn btn-decio w-100"><i class="bi bi-check-lg me-1"></i> Salvar</button>
+          {% if material %}<a href="{{ url_for('mat.cadastro') }}" class="btn btn-link w-100 mt-1">Cancelar edição</a>{% endif %}
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header">
+        <form method="get" class="input-group input-group-sm">
+          <input name="q" value="{{ busca }}" class="form-control" placeholder="Buscar material…">
+          <button class="btn btn-decio"><i class="bi bi-search"></i></button>
+        </form>
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+          <thead><tr><th>Código</th><th>Descrição</th><th>UMB</th><th>Dep.</th>
+            <th class="text-end">Mín</th><th></th></tr></thead>
+          <tbody>
+            {% for m in itens %}
+            <tr class="{{ 'opacity-50' if not m.ativo }}">
+              <td class="fw-semibold">{{ m.codigo }}</td>
+              <td style="font-size:.83rem">{{ m.descricao[:36] }}</td>
+              <td><small>{{ m.unidade }}</small></td>
+              <td><span class="pill">{{ m.tipo }}</span></td>
+              <td class="text-end"><small>{{ m.estoque_min|num(0) }}</small></td>
+              <td class="text-end"><a href="{{ url_for('mat.cadastro', editar=m.codigo) }}"
+                class="btn btn-sm btn-link p-0"><i class="bi bi-pencil"></i></a></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="text-center text-mudo py-4">Nenhum material.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

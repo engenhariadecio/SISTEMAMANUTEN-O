@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block titulo %}Importar materiais{% endblock %}
+{% block cabecalho %}Importação de Materiais e Saldos{% endblock %}
+{% block conteudo %}
+<div class="row justify-content-center"><div class="col-lg-7">
+  <form method="post" enctype="multipart/form-data">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-upload me-1"></i> Importar planilha (CSV ou Excel)</div>
+      <div class="card-body">
+        <div class="mb-3">
+          <label class="form-label">O que você quer importar?</label>
+          <div class="d-grid gap-2">
+            <input type="radio" class="btn-check" name="destino" id="d1" value="cadastro" checked>
+            <label class="btn btn-outline-secondary text-start" for="d1">
+              <strong>Cadastro de materiais</strong><br>
+              <small class="text-mudo">Colunas: Codigo · Descricao · Unidade · Tipo · Min · Max</small></label>
+
+            <input type="radio" class="btn-check" name="destino" id="d2" value="nlag">
+            <label class="btn btn-outline-secondary text-start" for="d2">
+              <strong>Saldo NLAG</strong> (aba “SALDO NLAG” da DC-014)<br>
+              <small class="text-mudo">Colunas: Codigo · Descricao · Unidade · Saldo — gera ajuste de inventário</small></label>
+
+            <input type="radio" class="btn-check" name="destino" id="d3" value="sap">
+            <label class="btn btn-outline-secondary text-start" for="d3">
+              <strong>Saldo HIBE/ERSA do SAP</strong><br>
+              <small class="text-mudo">Colunas: Material · Descrição de material · Estoque de utilização livre</small></label>
+          </div>
+        </div>
+        <div class="mb-3"><label class="form-label">Arquivo</label>
+          <input type="file" name="arquivo" class="form-control" required accept=".csv,.xlsx,.xlsm,.xls"></div>
+        <div class="alert alert-info mb-0" style="font-size:.85rem">
+          <i class="bi bi-info-circle-fill me-1"></i>
+          Os nomes das colunas são reconhecidos automaticamente, sem precisar reformatar a planilha
+          exportada do SAP ou da DC-014.
+        </div>
+      </div>
+      <div class="card-footer bg-white text-end">
+        <a href="{{ url_for('mat.saldo') }}" class="btn btn-outline-secondary">Voltar</a>
+        <button class="btn btn-decio"><i class="bi bi-upload me-1"></i> Importar</button>
+      </div>
+    </div>
+  </form>
+</div></div>
+{% endblock %}

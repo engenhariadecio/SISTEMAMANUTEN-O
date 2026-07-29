@@ -66,15 +66,20 @@ def saldo():
             continue
         if filtro == "zerados" and m["saldo"] > 0:
             continue
+        if filtro == "com_saldo" and m["saldo"] <= 0:
+            continue
         linhas.append(m)
 
     resumo = {
         "total": len(linhas),
-        "abaixo": len([m for m in linhas if m["abaixo_min"]]),
+        "com_saldo": len([m for m in linhas if m["saldo"] > 0]),
         "zerados": len([m for m in linhas if m["saldo"] <= 0]),
+        "abaixo": len([m for m in linhas if m["abaixo_min"]]),
+        "valor": sum(m["saldo"] * float(m["valor_unit"] or 0) for m in linhas),
     }
+    atualizado = db.scalar("SELECT MAX(data_hora) AS d FROM movimentacoes", default=None)
     return render_template("mat/saldo.html", itens=linhas, tipo=tipo, busca=busca,
-                           filtro=filtro, resumo=resumo)
+                           filtro=filtro, resumo=resumo, atualizado=atualizado)
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -94,6 +99,34 @@ def cadastro():
         f = request.files.get("imagem")
         if f and f.filename:
             imagem = _processar_imagem(f)
+
+        if acao == "foto":
+            f = request.files.get("imagem")
+            dados = _processar_imagem(f) if f else None
+            if dados:
+                db.executar("UPDATE materiais SET imagem=%s, atualizado_em=NOW() "
+                            "WHERE codigo=%s", (psycopg2.Binary(dados), codigo))
+                flash(f"Foto de {codigo} atualizada.", "success")
+            else:
+                flash("Não foi possível ler a imagem enviada.", "danger")
+            return redirect(url_for("mat.cadastro", editar=codigo))
+
+        if acao == "remover_foto":
+            db.executar("UPDATE materiais SET imagem=NULL WHERE codigo=%s", (codigo,))
+            flash(f"Foto de {codigo} removida.", "warning")
+            return redirect(url_for("mat.cadastro", editar=codigo))
+
+        if acao == "excluir":
+            usos = db.scalar("SELECT COUNT(*) AS n FROM movimentacoes WHERE codigo=%s",
+                             (codigo,), default=0)
+            if usos:
+                db.executar("UPDATE materiais SET ativo=FALSE WHERE codigo=%s", (codigo,))
+                flash(f"{codigo} tem {usos} movimentação(ões) e foi apenas desativado, "
+                      "para preservar o histórico.", "warning")
+            else:
+                db.executar("DELETE FROM materiais WHERE codigo=%s", (codigo,))
+                flash(f"Material {codigo} excluído.", "warning")
+            return redirect(url_for("mat.cadastro"))
 
         if acao == "editar":
             sql = """UPDATE materiais SET descricao=%s, unidade=%s, tipo=%s, aplicacao=%s,
@@ -239,6 +272,40 @@ def _alerta_minimo(material, saldo_novo):
             f"(mín. {float(material['estoque_min']):g}). "
             f"Sugestão de compra: {max(sugestao, 0):g}.",
             url_for("mat.alertas"))
+
+
+@bp.route("/rapida", methods=["POST"])
+@exige("material_mov")
+def rapida():
+    """Entrada ou saída direto da linha do dashboard."""
+    codigo = request.form.get("codigo", "").strip().upper()
+    operacao = request.form.get("operacao", "ENTRADA")
+    try:
+        qtd = float(request.form.get("quantidade") or 0)
+    except ValueError:
+        qtd = 0
+    m = db.um("SELECT * FROM materiais WHERE codigo=%s", (codigo,))
+    if not m or qtd <= 0:
+        flash("Informe um material e uma quantidade válidos.", "warning")
+        return redirect(request.referrer or url_for("mat.saldo"))
+
+    if operacao == "SAIDA":
+        saldo = db.saldo_material(codigo)
+        if saldo < qtd:
+            flash(f"Saldo insuficiente de {codigo}. Disponível: {saldo:g} "
+                  f"{m['unidade']}.", "danger")
+            return redirect(request.referrer or url_for("mat.saldo"))
+
+    db.executar("""INSERT INTO movimentacoes (codigo, tipo, quantidade, usuario, observacao)
+                   VALUES (%s,%s,%s,%s,%s)""",
+                (codigo, operacao, qtd, session["nome"],
+                 request.form.get("observacao", "").strip() or "Lançamento rápido"))
+    novo = db.saldo_material(codigo)
+    flash(f"{'Entrada' if operacao == 'ENTRADA' else 'Saída'} de {qtd:g} "
+          f"{m['unidade']} — {m['descricao'][:40]}. Novo saldo: {novo:g}.", "success")
+    if operacao == "SAIDA":
+        _alerta_minimo(m, novo)
+    return redirect(request.referrer or url_for("mat.saldo"))
 
 
 @bp.route("/ajuste", methods=["POST"])

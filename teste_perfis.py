@@ -54,9 +54,9 @@ for rota in DEPOSITO:
 print(f"   ✅ analista tem acesso a todas as {len(DEPOSITO)}")
 
 r = mnt.get("/")
-assert b"Saldo de estoque" not in r.data, "menu do depósito não deveria aparecer"
-assert b"Saldo de estoque" in ana.get("/").data
-print("   ✅ seção 'Materiais' some do menu do manutentor")
+assert "Depósito NLAG".encode() not in r.data, "menu do depósito não deveria aparecer"
+assert "Depósito NLAG".encode() in ana.get("/").data
+print("   ✅ seção 'Depósito NLAG' some do menu do manutentor")
 
 # Escrita direta também é barrada
 r = mnt.post("/materiais/entrada", data={"codigo": "X", "quantidade": "5"},

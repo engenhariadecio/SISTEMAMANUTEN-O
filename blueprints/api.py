@@ -24,17 +24,47 @@ def equipamentos():
 
 @bp.route("/materiais/busca")
 def busca_material():
+    """Catálogo para o manutentor escolher a peça dentro da OS."""
     q = request.args.get("q", "").strip()
-    if len(q) < 2:
-        return jsonify([])
-    itens = db.query("""SELECT codigo, descricao, unidade, tipo FROM materiais
-                        WHERE ativo=TRUE AND (codigo ILIKE %s OR descricao ILIKE %s)
-                        ORDER BY codigo LIMIT 20""", (f"%{q}%", f"%{q}%"))
+    so_com_saldo = request.args.get("com_saldo") == "1"
+
+    where, params = ["m.ativo=TRUE"], []
+    if q:
+        where.append("(m.codigo ILIKE %s OR m.descricao ILIKE %s)")
+        params += [f"%{q}%", f"%{q}%"]
+
+    # O filtro de saldo precisa ser aplicado antes do limite, senão itens
+    # com saldo ficam de fora só por estarem mais adiante no alfabeto.
+    having = ""
+    if so_com_saldo:
+        having = """HAVING (CASE WHEN m.tipo='NLAG' THEN
+                     COALESCE(SUM(CASE WHEN mv.tipo IN ('ENTRADA','AJUSTE') THEN mv.quantidade
+                                       ELSE -mv.quantidade END),0)
+                   ELSE COALESCE(m.saldo_sap,0) END) > 0"""
+
+    itens = db.query(f"""
+        SELECT m.codigo, m.descricao, m.unidade, m.tipo, m.localizacao,
+               m.estoque_min, m.saldo_sap, (m.imagem IS NOT NULL) AS tem_foto,
+          COALESCE(SUM(CASE WHEN mv.tipo IN ('ENTRADA','AJUSTE') THEN mv.quantidade
+                            ELSE -mv.quantidade END),0) AS saldo_nlag
+        FROM materiais m
+        LEFT JOIN movimentacoes mv ON mv.codigo = m.codigo
+        WHERE {' AND '.join(where)}
+        GROUP BY m.id
+        {having}
+        ORDER BY (CASE WHEN m.tipo='NLAG' THEN 0 ELSE 1 END), m.descricao
+        LIMIT 80""", params)
+
     saida = []
     for m in itens or []:
-        d = dict(m)
-        d["saldo"] = db.saldo_material(m["codigo"]) if m["tipo"] == "NLAG" else None
-        saida.append(d)
+        saldo = (float(m["saldo_nlag"]) if m["tipo"] == "NLAG"
+                 else float(m["saldo_sap"] or 0))
+        saida.append({
+            "codigo": m["codigo"], "descricao": m["descricao"],
+            "unidade": m["unidade"], "tipo": m["tipo"], "saldo": saldo,
+            "localizacao": m["localizacao"] or "", "tem_foto": m["tem_foto"],
+            "minimo": float(m["estoque_min"] or 0),
+        })
     return jsonify(saida)
 
 

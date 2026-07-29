@@ -50,8 +50,8 @@ PERMISSOES = {
     "material_mov":     ("admin", "supervisao", "lider", "analista"),
     "material_cad":     GESTAO_ANALISTA,
 
-    # ── Solicitar peça: o manutentor faz, de dentro da OS ──
-    "solicitar_material": EXECUCAO + ("analista",),
+    # ── Solicitar peça: quem executa a manutenção. O analista atende, não pede ──
+    "solicitar_material": EXECUCAO,
     "tratar_solicitacao": GESTAO_ANALISTA,
 
     "indicadores":      ("admin", "supervisao", "lider", "analista"),

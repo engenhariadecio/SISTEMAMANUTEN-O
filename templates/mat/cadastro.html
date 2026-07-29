@@ -40,8 +40,11 @@
           <div class="mb-3"><label class="form-label">Localização</label>
             <input name="localizacao" class="form-control" placeholder="Prateleira / gaveta"
                    value="{{ material.localizacao or '' if material }}"></div>
-          <div class="mb-3"><label class="form-label">Foto</label>
-            <input type="file" name="imagem" class="form-control" accept="image/*"></div>
+          {% if not material %}
+          <div class="mb-3"><label class="form-label">Foto do material</label>
+            <input type="file" name="imagem" class="form-control" accept="image/*">
+            <small class="text-mudo">Ajuda o manutentor a reconhecer a peça no catálogo.</small></div>
+          {% endif %}
           <div class="form-check form-switch mb-2">
             <input class="form-check-input" type="checkbox" name="critico" value="1" id="critico"
                    {{ 'checked' if material and material.critico }}>
@@ -55,6 +58,39 @@
           <button class="btn btn-decio w-100"><i class="bi bi-check-lg me-1"></i> Salvar</button>
           {% if material %}<a href="{{ url_for('mat.cadastro') }}" class="btn btn-link w-100 mt-1">Cancelar edição</a>{% endif %}
         </form>
+
+        {% if material %}
+        <hr>
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <img src="{{ url_for('mat.imagem', codigo=material.codigo) }}"
+               style="width:64px;height:64px;object-fit:cover;border-radius:10px">
+          <div class="flex-grow-1">
+            <form method="post" enctype="multipart/form-data" class="d-flex gap-2">
+              <input type="hidden" name="acao" value="foto">
+              <input type="hidden" name="codigo" value="{{ material.codigo }}">
+              <input type="file" name="imagem" class="form-control form-control-sm"
+                     accept="image/*" required>
+              <button class="btn btn-sm btn-outline-primary text-nowrap">
+                <i class="bi bi-camera-fill"></i></button>
+            </form>
+            {% if material.imagem %}
+            <form method="post" class="mt-1">
+              <input type="hidden" name="acao" value="remover_foto">
+              <input type="hidden" name="codigo" value="{{ material.codigo }}">
+              <button class="btn btn-sm btn-link text-danger p-0" style="font-size:.8rem">
+                <i class="bi bi-trash"></i> Remover foto</button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+        <form method="post"
+              onsubmit="return confirm('Excluir o material {{ material.codigo }}? Se houver movimentações ele será apenas desativado.')">
+          <input type="hidden" name="acao" value="excluir">
+          <input type="hidden" name="codigo" value="{{ material.codigo }}">
+          <button class="btn btn-sm btn-outline-danger w-100">
+            <i class="bi bi-trash me-1"></i> Excluir material</button>
+        </form>
+        {% endif %}
       </div>
     </div>
   </div>
@@ -68,11 +104,13 @@
       </div>
       <div class="card-body p-0">
         <table class="table table-hover mb-0">
-          <thead><tr><th>Código</th><th>Descrição</th><th>UMB</th><th>Dep.</th>
-            <th class="text-end">Mín</th><th></th></tr></thead>
+          <thead><tr><th style="width:46px"></th><th>Código</th><th>Descrição</th>
+            <th>UMB</th><th>Dep.</th><th class="text-end">Mín</th><th></th></tr></thead>
           <tbody>
             {% for m in itens %}
             <tr class="{{ 'opacity-50' if not m.ativo }}">
+              <td><img src="{{ url_for('mat.imagem', codigo=m.codigo) }}"
+                       style="width:34px;height:34px;object-fit:cover;border-radius:7px"></td>
               <td class="fw-semibold">{{ m.codigo }}</td>
               <td style="font-size:.83rem">{{ m.descricao[:36] }}</td>
               <td><small>{{ m.unidade }}</small></td>
@@ -82,7 +120,7 @@
                 class="btn btn-sm btn-link p-0"><i class="bi bi-pencil"></i></a></td>
             </tr>
             {% else %}
-            <tr><td colspan="6" class="text-center text-mudo py-4">Nenhum material.</td></tr>
+            <tr><td colspan="7" class="text-center text-mudo py-4">Nenhum material.</td></tr>
             {% endfor %}
           </tbody>
         </table>

@@ -36,14 +36,14 @@ for cod, desc, umb, saldo, minimo, valor in MATS:
                        VALUES (%s,'AJUSTE',%s,'teste','carga de teste')""",
                     (cod, saldo - atual))
 
-# "7602637" propositalmente NÃO cadastrado → deve cair em "não cadastrado"
+# "ZZZ999-SEM-CADASTRO" propositalmente NÃO cadastrado → deve cair em "não cadastrado"
 
 # Três planos em equipamentos diferentes, com periodicidades diferentes
 PLANOS = [
     ("CO03-00", "Preventiva Compressor Kaeser ASD 40S", "MEN", 1,
      [("7000590", 20, "qt_men"), ("1990361", 10, "qt_men"), ("6001740", 1, "qt_men")]),
     ("PU01-00", "Preventiva Puncionadeira PGA4", "TRI", 1,
-     [("1990361", 20, "qt_tri"), ("7604374", 2, "qt_tri"), ("7602637", 1, "qt_tri")]),
+     [("1990361", 20, "qt_tri"), ("7604374", 2, "qt_tri"), ("ZZZ999-SEM-CADASTRO", 1, "qt_tri")]),
     ("GU01-00", "Preventiva Guilhotina Newton 3003", "SEM", 1,
      [("1990361", 5, "qt_sem"), ("7000590", 2, "qt_sem")]),
 ]
@@ -87,14 +87,14 @@ por_cod = {l["codigo"]: l for l in linhas}
 assert por_cod["6001740"]["situacao"] == "sem_estoque", "filtro sem_estoque falhou"
 assert por_cod["1990361"]["situacao"] == "parcial", "parcial falhou"
 assert por_cod["7000590"]["situacao"] == "disponivel", "disponível falhou"
-assert "7602637" not in por_cod, "item trimestral não deveria entrar em 30 dias"
+assert "ZZZ999-SEM-CADASTRO" not in por_cod, "item trimestral não deveria entrar em 30 dias"
 print("\n   ✅ situações classificadas corretamente em 30 dias")
 print("   ✅ item trimestral corretamente fora da janela de 30 dias")
 
 # Janela maior traz o item trimestral (não cadastrado)
 l90, _, _ = calcular_necessidade(hoje, hoje + timedelta(days=89))
 p90 = {l["codigo"]: l for l in l90}
-assert p90["7602637"]["situacao"] == "nao_cadastrado", "não cadastrado falhou"
+assert p90["ZZZ999-SEM-CADASTRO"]["situacao"] == "nao_cadastrado", "não cadastrado falhou"
 print("   ✅ em 90 dias o item trimestral aparece como 'não cadastrado'")
 
 # Ordenação: faltas primeiro
@@ -148,7 +148,7 @@ print(f"   ✅ CSV com {len(csv_txt.splitlines())} linhas")
 print("\n── Gerar solicitações ──")
 antes = db.scalar("SELECT COUNT(*) AS n FROM solicitacoes_material")
 r = c.post("/preventivas/plano-materiais/solicitar?dias=90",
-           data={"codigo": ["6001740", "7602637", "1990361"]}, follow_redirects=True)
+           data={"codigo": ["6001740", "ZZZ999-SEM-CADASTRO", "1990361"]}, follow_redirects=True)
 assert r.status_code == 200
 depois = db.scalar("SELECT COUNT(*) AS n FROM solicitacoes_material")
 print(f"   {depois - antes} solicitações geradas")
@@ -156,8 +156,9 @@ assert depois - antes == 3, "deveria gerar 3 solicitações"
 
 sm = db.um("""SELECT * FROM solicitacoes_material ORDER BY id DESC LIMIT 1""")
 print(f"   SM #{sm['numero']} · {sm['descricao'][:34]} · qtd {sm['quantidade']:g} · tipo {sm['tipo']}")
-nc = db.um("SELECT * FROM solicitacoes_material WHERE descricao='7602637' "
-           "OR codigo='7602637' ORDER BY id DESC LIMIT 1")
+nc = db.um("SELECT * FROM solicitacoes_material "
+           "WHERE descricao='ZZZ999-SEM-CADASTRO' OR codigo='ZZZ999-SEM-CADASTRO' "
+           "ORDER BY id DESC LIMIT 1")
 assert nc and nc["tipo"] == "Cadastro", "item não cadastrado deveria virar tipo 'Cadastro'"
 print("   ✅ item sem cadastro gerou solicitação do tipo 'Cadastro'")
 

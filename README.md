@@ -107,6 +107,12 @@ Uma OS reprovada **volta para o mesmo manutentor**, não para a fila de triagem.
   já com a foto anexada.
 
 ### Módulo — Controle de Materiais
+- **Dashboard** no padrão do sistema NLAG original: itens cadastrados, com saldo
+  e zerados, filtro, exportação CSV, impressão, e em cada linha os botões de
+  entrada, saída, histórico e etiqueta.
+- **Catálogo de peças**: o manutentor escolhe o item numa lista com foto,
+  código, descrição, unidade e saldo — não precisa decorar código. Um filtro
+  "só com saldo" mostra o que dá para retirar agora.
 - **NLAG**: saldo controlado pelo sistema — entradas, saídas, ajuste de inventário,
   histórico completo, etiquetas com código de barras Code128 e coletor.
 - **HIBE/ERSA**: saldo importado da planilha do SAP, apenas para consulta de
@@ -335,7 +341,7 @@ exportação e alertas. Mais o tratamento das solicitações e os relatórios.
 |---|---|
 | **Solicitante de OS** | Abre OS, acompanha apontamentos, aprova/reprova o serviço |
 | **Manutentor** | Só as OS, preventivas e rondas **destinadas a ele**. Cronômetro, OS de emergência, pedido de peça e conclusão com evidências. Não planeja nem abre o depósito |
-| **Analista de Materiais** | Relatórios + **dono do depósito NLAG** — entradas, saídas, cadastro, inventário, etiquetas, coletor, importações, alertas — e trata as solicitações |
+| **Analista de Materiais** | Relatórios + **dono do depósito NLAG** (não solicita material, atende) — entradas, saídas, cadastro, inventário, etiquetas, coletor, importações, alertas — e trata as solicitações |
 | **Líder de Manutenção** | **Distribui OS, OMs e rondas** + planejamento das 52 semanas, cadastros, estoques mínimos, visto de liberação e depósito |
 | **Supervisão** | Visão gerencial completa e relatórios globais |
 | **Administrador** | Controle total, incluindo usuários e parâmetros |
@@ -429,17 +435,24 @@ Ordem sugerida de configuração:
    criticidade inicial foi **atribuída por inferência** e precisa ser revista. Use o
    ícone da matriz em cada equipamento para classificar pelos seis critérios; depois
    use *Reclassificar pela matriz* para aplicar em massa.
-4. **Materiais → Importar**:
+4. **Migrar o depósito NLAG** — no sistema atual, use *Exportar Saldo CSV*.
+   No sistema novo, vá em **Depósito NLAG → Importar planilha**, escolha
+   *Saldo NLAG* e envie o arquivo. As colunas `Codigo · Descricao · Unidade ·
+   Saldo` são reconhecidas sozinhas. Reimportar não duplica: o sistema ajusta
+   a diferença, então dá para rodar de novo no dia da virada para pegar o
+   saldo mais recente.
+
+5. **Materiais → Importar** (outros casos):
    - *Saldo NLAG* → aba `SALDO NLAG` da DC-014 (salve a aba como `.xlsx`);
    - *Saldo HIBE/ERSA do SAP* → aba `SALDO HIBE-ERSA` ou o export direto do SAP.
    Os nomes das colunas são reconhecidos automaticamente.
-5. **Materiais → Cadastro** — defina estoque mínimo/máximo e marque as
+6. **Materiais → Cadastro** — defina estoque mínimo/máximo e marque as
    peças críticas (base: aba `ESTOQUE DE SEGURANÇA`).
-6. **Preventivas → Planos** — crie um plano por equipamento, cadastre os itens
+7. **Preventivas → Planos** — crie um plano por equipamento, cadastre os itens
    do check list (ex.: RQ-346) e os materiais por periodicidade.
-7. **Preventivas → Grade** — use *Programar plano* para gerar as 52 semanas
+8. **Preventivas → Grade** — use *Programar plano* para gerar as 52 semanas
    conforme a periodicidade de cada plano.
-8. **Rondas → Cadastro** — ajuste os pontos de verificação diários.
+9. **Rondas → Cadastro** — ajuste os pontos de verificação diários.
 
 ---
 
@@ -544,6 +557,7 @@ python teste_email.py            # disparos de e-mail
 python teste_fluxo.py            # fluxo ponta a ponta com triagem
 python teste_email_config.py     # configuração de e-mail pela tela
 python teste_recorte.py          # recorte de acesso por perfil
+python teste_nlag.py             # migração do NLAG e catálogo de peças
 ```
 
 ---

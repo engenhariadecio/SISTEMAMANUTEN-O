@@ -72,14 +72,16 @@
   {% endif %}
 
   {% if pode('material_ver') %}
-  <div class="nav-section">Materiais</div>
-  {{ item('mat.saldo', 'boxes', 'Saldo de estoque', 'material_ver') }}
+  <div class="nav-section">Depósito NLAG</div>
+  {{ item('mat.saldo', 'speedometer2', 'Dashboard', 'material_ver') }}
   {{ item('mat.entrada', 'box-arrow-in-down', 'Entrada', 'material_mov') }}
   {{ item('mat.saida', 'box-arrow-up', 'Saída', 'material_mov') }}
-  {{ item('mat.coletor', 'upc-scan', 'Coletor', 'material_mov') }}
-  {{ item('mat.etiquetas', 'tags-fill', 'Etiquetas', 'material_ver') }}
-  {{ item('mat.alertas', 'exclamation-triangle-fill', 'Alertas de estoque', 'material_ver') }}
   {{ item('mat.historico', 'clock-history', 'Histórico', 'material_ver') }}
+  {{ item('mat.etiquetas', 'tags-fill', 'Imprimir etiqueta', 'material_ver') }}
+  {{ item('mat.cadastro', 'list-ul', 'Materiais', 'material_cad') }}
+  {{ item('mat.coletor', 'phone', 'Modo celular', 'material_mov') }}
+  {{ item('mat.importar', 'upload', 'Importar planilha', 'material_cad') }}
+  {{ item('mat.alertas', 'exclamation-triangle-fill', 'Alertas de estoque', 'material_ver') }}
   {% endif %}
 
   {% if u.perfil != 'manutentor' %}

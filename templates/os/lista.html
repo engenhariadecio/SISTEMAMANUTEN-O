@@ -11,7 +11,8 @@
         <label class="form-label mb-1">Situação</label>
         <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
           <option value="abertas" {{ 'selected' if status=='abertas' }}>Em aberto</option>
-          <option value="aberta" {{ 'selected' if status=='aberta' }}>Aguardando início</option>
+          <option value="triagem" {{ 'selected' if status=='triagem' }}>Aguardando triagem</option>
+          <option value="atribuida" {{ 'selected' if status=='atribuida' }}>Atribuídas</option>
           <option value="em_andamento" {{ 'selected' if status=='em_andamento' }}>Em andamento</option>
           <option value="aguardando_peca" {{ 'selected' if status=='aguardando_peca' }}>Aguardando peça</option>
           <option value="aprovacao" {{ 'selected' if status=='aprovacao' }}>Aguardando aprovação</option>

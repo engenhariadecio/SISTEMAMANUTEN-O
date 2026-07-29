@@ -317,3 +317,15 @@ tr[data-crit] { box-shadow: inset 4px 0 0 var(--cor-crit, #CFD8E5); }
   #conteudo { padding: 0; }
   .card { box-shadow: none; border: 1px solid #ccc; }
 }
+
+.st-atribuida { background: rgba(16,71,125,.13); color: var(--azul); }
+.st-aberta { background: #FFE9B8; color: #85590A; }
+
+
+/* Destaque do bloco alvo quando se chega pelo link do e-mail */
+@keyframes realce {
+  0%   { box-shadow: 0 0 0 0 rgba(40,163,83,.55); }
+  70%  { box-shadow: 0 0 0 14px rgba(40,163,83,0); }
+  100% { box-shadow: 0 0 0 0 rgba(40,163,83,0); }
+}
+.card:target { animation: realce 1.6s ease-out 2; scroll-margin-top: 84px; }

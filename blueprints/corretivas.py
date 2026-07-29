@@ -9,6 +9,7 @@ from flask import (Blueprint, render_template, request, redirect, url_for,
                    flash, session, Response, jsonify, abort)
 
 import db
+import mailer
 from auth import pode, exige, EXECUCAO
 
 bp = Blueprint("os", __name__, url_prefix="/os")
@@ -21,8 +22,13 @@ TIPOS_TEMPO = {
     "aguardando_peca": "Aguardando peça",
 }
 
+# Situações consideradas "em aberto" na fila e nos filtros
+ABERTAS = ("aberta", "atribuida", "em_andamento", "pausada",
+           "aguardando_peca", "reprovada")
+
 STATUS_LABEL = {
-    "aberta": "Aberta",
+    "aberta": "Aguardando triagem",
+    "atribuida": "Atribuída",
     "em_andamento": "Em andamento",
     "pausada": "Pausada",
     "aguardando_peca": "Aguardando peça",
@@ -48,17 +54,23 @@ def lista():
     params = []
 
     if status == "abertas":
-        where.append("o.status IN ('aberta','em_andamento','pausada','aguardando_peca','reprovada')")
+        where.append("o.status = ANY(%s)")
+        params.append(list(ABERTAS))
+    elif status == "triagem":
+        where.append("o.status='aberta' AND o.responsavel_id IS NULL")
     elif status == "aprovacao":
         where.append("o.status='aguardando_aprovacao'")
     elif status and status != "todas":
         where.append("o.status=%s")
         params.append(status)
 
-    # Solicitante puro só enxerga as próprias OS
+    # Solicitante vê o que abriu; manutentor vê o que lhe foi atribuído
     if session.get("perfil") == "solicitante":
         where.append("o.solicitante_id=%s")
         params.append(session["uid"])
+    elif session.get("perfil") == "manutentor":
+        where.append("(o.responsavel_id=%s OR o.solicitante_id=%s)")
+        params += [session["uid"], session["uid"]]
 
     if equip:
         where.append("o.equipamento_id=%s")
@@ -149,9 +161,30 @@ def nova():
 
         _salvar_anexos(os_id, request.files.getlist("anexos"))
 
+        link = url_for("os.detalhe", os_id=os_id)
         db.notificar_perfis(("lider", "supervisao", "admin"),
-                            f"Nova OS #{numero}",
-                            descricao[:120], url_for("os.detalhe", os_id=os_id))
+                            f"Nova OS #{numero} aguardando triagem",
+                            descricao[:120], link)
+
+        eq_txt = _texto_equipamento(eq_id, eq_outro)
+        mailer.avisar(
+            "os_aberta",
+            mailer.emails_dos_perfis(("lider", "supervisao")),
+            assunto=f"[Manutenção] Nova OS #{numero} para distribuir — {eq_txt}",
+            titulo=f"Nova OS #{numero} aguardando triagem",
+            subtitulo=f"Aberta por {session['nome']} · escolha o manutentor",
+            mensagem=descricao,
+            itens=[("Equipamento", eq_txt),
+                   ("Criticidade", _nome_criticidade(crit)),
+                   ("Tipo", tipo),
+                   ("Local", _texto_local(est_id, ct_id)),
+                   ("Máquina parada", "SIM — produção interrompida" if parada else "Não"),
+                   ("Solicitante", session["nome"]),
+                   ("Aberta em", db.agora().strftime("%d/%m/%Y às %H:%M"))],
+            botao=("Distribuir esta OS agora",
+                   mailer.url(url_for("os.triagem"))),
+            rodape="A OS fica parada até que a liderança escolha o manutentor.")
+
         db.registrar_log(session["uid"], session["nome"], "abrir_os", "ordens_servico", os_id)
         flash(f"Ordem de Serviço #{numero} aberta com sucesso.", "success")
         return redirect(url_for("os.detalhe", os_id=os_id))
@@ -291,17 +324,87 @@ def _iniciar_tempo(os_id, tipo):
 
 
 @bp.route("/<int:os_id>/assumir", methods=["POST"])
-@exige("os_executar")
+@exige("os_triagem")
 def assumir(os_id):
+    """Triagem: a liderança escolhe qual manutentor vai atender."""
     resp = request.form.get("responsavel_id") or session["uid"]
     nome = db.scalar("SELECT nome FROM usuarios WHERE id=%s", (resp,), default="")
-    db.executar("UPDATE ordens_servico SET responsavel_id=%s WHERE id=%s", (resp, os_id))
-    _apontar(os_id, "assumiu", f"{nome} assumiu a OS.")
-    o = db.um("SELECT numero, solicitante_id FROM ordens_servico WHERE id=%s", (os_id,))
+    db.executar("""UPDATE ordens_servico SET responsavel_id=%s,
+                   status = CASE WHEN status='aberta' THEN 'atribuida' ELSE status END
+                   WHERE id=%s""", (resp, os_id))
+    _apontar(os_id, "atribuicao",
+             f"{session['nome']} distribuiu a OS para {nome}.")
+    o = db.um("""SELECT o.*, e.codigo AS eq_codigo, e.nome AS eq_nome,
+                        s.nome AS solicitante
+                 FROM ordens_servico o
+                 LEFT JOIN equipamentos e ON e.id=o.equipamento_id
+                 LEFT JOIN usuarios s ON s.id=o.solicitante_id
+                 WHERE o.id=%s""", (os_id,))
+    link = url_for("os.detalhe", os_id=os_id)
     db.notificar(o["solicitante_id"], f"OS #{o['numero']} — manutentor designado",
-                 f"{nome} assumiu sua ordem de serviço.", url_for("os.detalhe", os_id=os_id))
-    flash(f"OS atribuída a {nome}.", "success")
-    return redirect(url_for("os.detalhe", os_id=os_id))
+                 f"{nome} assumiu sua ordem de serviço.", link)
+    db.notificar(int(resp), f"OS #{o['numero']} atribuída a você",
+                 o["descricao_problema"][:120], link)
+
+    mailer.avisar(
+        "os_atribuida", mailer.emails_dos_usuarios([resp]),
+        assunto=f"[Manutenção] OS #{o['numero']} atribuída a você",
+        titulo=f"OS #{o['numero']} atribuída a você",
+        subtitulo=_eq_txt(o),
+        mensagem=o["descricao_problema"],
+        itens=[("Equipamento", _eq_txt(o)),
+               ("Criticidade", _nome_criticidade(o["criticidade"])),
+               ("Solicitante", o["solicitante"]),
+               ("Aberta em", db.fmt(o["data_abertura"])),
+               ("Máquina parada", "SIM" if o["maquina_parada"] else "Não")],
+        botao=("Iniciar o atendimento", mailer.url(link) + "#cronometro"))
+    flash(f"OS atribuída a {nome}, que já foi notificado.", "success")
+    destino = request.form.get("voltar")
+    return redirect(url_for("os.triagem") if destino == "triagem"
+                    else url_for("os.detalhe", os_id=os_id))
+
+
+# ══════════════════════════════════════════════════════════════════
+#  TRIAGEM — tela do líder
+# ══════════════════════════════════════════════════════════════════
+@bp.route("/triagem")
+@exige("os_triagem")
+def triagem():
+    """OS abertas pelos solicitantes, aguardando a escolha do manutentor."""
+    fila = db.query(f"""
+        SELECT o.*, e.codigo AS eq_codigo, e.nome AS eq_nome, e.status AS eq_status,
+               s.nome AS solicitante, s.email AS solicitante_email,
+               ct.nome AS setor, est.nome AS estabelecimento,
+               EXTRACT(EPOCH FROM (NOW() - o.data_abertura))/3600 AS horas_espera,
+               (SELECT COUNT(*) FROM os_anexos a WHERE a.os_id=o.id) AS anexos
+        FROM ordens_servico o
+        LEFT JOIN equipamentos e ON e.id=o.equipamento_id
+        LEFT JOIN usuarios s ON s.id=o.solicitante_id
+        LEFT JOIN centros_trabalho ct ON ct.id=o.centro_trabalho_id
+        LEFT JOIN estabelecimentos est ON est.id=o.estabelecimento_id
+        WHERE o.status='aberta' AND o.responsavel_id IS NULL
+        ORDER BY {db.ordem_crit('o.criticidade')},
+                 o.maquina_parada DESC, o.data_abertura""")
+
+    # Carga atual de cada manutentor, para ajudar a decidir
+    equipe = db.query(f"""
+        SELECT u.id, u.nome,
+               COUNT(o.id) FILTER (WHERE o.status = ANY(%s)) AS em_aberto,
+               COUNT(o.id) FILTER (WHERE o.status='em_andamento') AS em_execucao
+        FROM usuarios u
+        LEFT JOIN ordens_servico o ON o.responsavel_id=u.id
+        WHERE u.ativo=TRUE AND u.perfil IN ('manutentor','lider')
+        GROUP BY u.id, u.nome ORDER BY em_aberto, u.nome""", (list(ABERTAS),))
+
+    return render_template("os/triagem.html", fila=fila, equipe=equipe,
+                           STATUS_LABEL=STATUS_LABEL)
+
+
+def _responsavel_ou_gestao(o):
+    """Só o manutentor designado — ou a liderança — mexe na OS."""
+    if session.get("perfil") in ("admin", "supervisao", "lider"):
+        return True
+    return o and o["responsavel_id"] == session.get("uid")
 
 
 @bp.route("/<int:os_id>/acao/<acao>", methods=["POST"])
@@ -310,12 +413,14 @@ def acao(os_id, acao):
     o = db.um("SELECT * FROM ordens_servico WHERE id=%s", (os_id,))
     if not o:
         abort(404)
+    if not _responsavel_ou_gestao(o):
+        flash("Esta OS está atribuída a outro manutentor.", "warning")
+        return redirect(url_for("os.detalhe", os_id=os_id))
+    if o["responsavel_id"] is None:
+        flash("A OS ainda não foi distribuída pela liderança.", "warning")
+        return redirect(url_for("os.detalhe", os_id=os_id))
 
     if acao == "iniciar":
-        if not o["responsavel_id"]:
-            db.executar("UPDATE ordens_servico SET responsavel_id=%s WHERE id=%s",
-                        (session["uid"], os_id))
-            _apontar(os_id, "assumiu", f"{session['nome']} assumiu a OS.")
         if not o["data_inicio"]:
             db.executar("UPDATE ordens_servico SET data_inicio=NOW() WHERE id=%s", (os_id,))
         db.executar("UPDATE ordens_servico SET status='em_andamento' WHERE id=%s", (os_id,))
@@ -417,6 +522,9 @@ def add_material(os_id):
     o = db.um("SELECT * FROM ordens_servico WHERE id=%s", (os_id,))
     if not o:
         abort(404)
+    if not _responsavel_ou_gestao(o):
+        flash("Esta OS está atribuída a outro manutentor.", "warning")
+        return redirect(url_for("os.detalhe", os_id=os_id))
 
     codigo = request.form.get("codigo", "").strip().upper()
     descricao = request.form.get("descricao", "").strip()
@@ -500,11 +608,23 @@ def add_material(os_id):
                  f"Solicitação SM #{numero} enviada ao analista de materiais: "
                  f"{faltante:g} de {descricao or codigo}.")
 
+        link_sm = url_for("sol.detalhe", sid=sid)
         db.notificar_perfis(("analista",),
                             f"Peça solicitada na OS #{o['numero']} — SM #{numero}",
                             f"{descricao or codigo} · qtd {faltante:g} · "
-                            f"{eq or 'sem equipamento'}",
-                            url_for("sol.detalhe", sid=sid))
+                            f"{eq or 'sem equipamento'}", link_sm)
+        mailer.avisar(
+            "material_solicitado", mailer.emails_dos_perfis(("analista", "lider")),
+            assunto=f"[Manutenção] SM #{numero} — peça solicitada na OS #{o['numero']}",
+            titulo=f"Solicitação de material SM #{numero}",
+            subtitulo=f"Aberta na OS #{o['numero']} por {session['nome']}",
+            itens=[("Peça", descricao or codigo),
+                   ("Código", mat["codigo"] if mat else "sem cadastro"),
+                   ("Quantidade", f"{faltante:g}"),
+                   ("Tipo", tipo_sm),
+                   ("Equipamento", eq or "—"),
+                   ("Motivo", obs)],
+            botao=("Tratar esta solicitação", mailer.url(link_sm)))
         db.notificar(o["solicitante_id"], f"OS #{o['numero']} — material solicitado",
                      f"{descricao or codigo} foi solicitado ao almoxarifado.",
                      url_for("os.detalhe", os_id=os_id))
@@ -565,6 +685,9 @@ def _recalcular_custo(os_id):
 @bp.route("/<int:os_id>/concluir", methods=["POST"])
 @exige("os_executar")
 def concluir(os_id):
+    if not _responsavel_ou_gestao(_detalhe_os(os_id)):
+        flash("Esta OS está atribuída a outro manutentor.", "warning")
+        return redirect(url_for("os.detalhe", os_id=os_id))
     defeito = request.form.get("defeito_id") or None
     causa = request.form.get("causa_id") or None
     acao_txt = request.form.get("acao_realizada", "").strip()
@@ -590,8 +713,33 @@ def concluir(os_id):
     if liberar and o["equipamento_id"]:
         db.executar("UPDATE equipamentos SET status='operando' WHERE id=%s", (o["equipamento_id"],))
 
+    link = url_for("os.detalhe", os_id=os_id)
     db.notificar(o["solicitante_id"], f"OS #{o['numero']} concluída — aprove ou reprove",
-                 acao_txt[:150], url_for("os.detalhe", os_id=os_id))
+                 acao_txt[:150], link)
+
+    det = db.um("""SELECT o.*, e.codigo AS eq_codigo, e.nome AS eq_nome,
+                          d.nome AS defeito, c.nome AS causa, r.nome AS responsavel
+                   FROM ordens_servico o
+                   LEFT JOIN equipamentos e ON e.id=o.equipamento_id
+                   LEFT JOIN defeitos d ON d.id=o.defeito_id
+                   LEFT JOIN causas c ON c.id=o.causa_id
+                   LEFT JOIN usuarios r ON r.id=o.responsavel_id
+                   WHERE o.id=%s""", (os_id,))
+    mailer.avisar(
+        "os_concluida", mailer.emails_dos_usuarios([o["solicitante_id"]]),
+        assunto=f"[Manutenção] OS #{o['numero']} concluída — precisa da sua aprovação",
+        titulo=f"OS #{o['numero']} concluída",
+        subtitulo="Confirme se o problema foi resolvido",
+        mensagem=acao_txt,
+        itens=[("Equipamento", _eq_txt(det)),
+               ("Problema relatado", det["descricao_problema"]),
+               ("Executado por", det["responsavel"]),
+               ("Tipo de defeito", det["defeito"]),
+               ("Causa", det["causa"]),
+               ("Tempo de reparo", _horas(det["tempo_trabalho_seg"])),
+               ("Concluída em", db.agora().strftime("%d/%m/%Y às %H:%M"))],
+        botao=("Aprovar ou reprovar o serviço", mailer.url(link) + "#aprovacao"),
+        rodape="Enquanto você não aprovar, a OS permanece pendente no sistema.")
     flash("OS concluída. Aguardando aprovação do solicitante.", "success")
     return redirect(url_for("os.detalhe", os_id=os_id))
 
@@ -614,9 +762,19 @@ def aprovar(os_id):
         db.executar("""UPDATE ordens_servico SET status='concluida', aprovado=TRUE,
                        data_aprovacao=NOW() WHERE id=%s""", (os_id,))
         _apontar(os_id, "aprovacao", f"OS aprovada pelo solicitante. {comentario}")
+        link = url_for("os.detalhe", os_id=os_id)
         db.notificar(o["responsavel_id"], f"OS #{o['numero']} aprovada",
-                     "O solicitante aprovou o serviço. OS finalizada.",
-                     url_for("os.detalhe", os_id=os_id))
+                     "O solicitante aprovou o serviço. OS finalizada.", link)
+        mailer.avisar(
+            "os_aprovada", mailer.emails_dos_usuarios([o["responsavel_id"]]),
+            assunto=f"[Manutenção] OS #{o['numero']} aprovada e finalizada",
+            titulo=f"OS #{o['numero']} aprovada",
+            subtitulo="O solicitante confirmou a solução",
+            mensagem=comentario or "Serviço aprovado sem observações.",
+            itens=[("Equipamento", _eq_txt(_detalhe_os(os_id))),
+                   ("Aprovada por", session["nome"]),
+                   ("Aprovada em", db.agora().strftime("%d/%m/%Y às %H:%M"))],
+            botao=("Ver a OS", mailer.url(link)))
         flash("OS aprovada e finalizada.", "success")
     else:
         if not comentario:
@@ -625,10 +783,24 @@ def aprovar(os_id):
         db.executar("""UPDATE ordens_servico SET status='reprovada', aprovado=FALSE,
                        comentario_reprova=%s WHERE id=%s""", (comentario, os_id))
         _apontar(os_id, "reprovacao", f"OS REPROVADA: {comentario}")
+        link = url_for("os.detalhe", os_id=os_id)
         db.notificar(o["responsavel_id"], f"OS #{o['numero']} reprovada",
-                     comentario[:150], url_for("os.detalhe", os_id=os_id))
+                     comentario[:150], link)
         db.notificar_perfis(("lider", "supervisao"), f"OS #{o['numero']} reprovada",
-                            comentario[:150], url_for("os.detalhe", os_id=os_id))
+                            comentario[:150], link)
+        mailer.avisar(
+            "os_reprovada",
+            mailer.emails_dos_usuarios([o["responsavel_id"]])
+            + mailer.emails_dos_perfis(("lider", "supervisao")),
+            assunto=f"[Manutenção] OS #{o['numero']} REPROVADA pelo solicitante",
+            titulo=f"OS #{o['numero']} reprovada",
+            subtitulo="O problema não foi resolvido",
+            mensagem=comentario,
+            itens=[("Equipamento", _eq_txt(_detalhe_os(os_id))),
+                   ("Reprovada por", session["nome"]),
+                   ("Reprovada em", db.agora().strftime("%d/%m/%Y às %H:%M"))],
+            botao=("Retomar o atendimento", mailer.url(link) + "#cronometro"),
+            rodape="A OS voltou para a fila com a situação 'Reprovada'.")
         flash("OS reprovada — ela volta para a fila da manutenção.", "warning")
     return redirect(url_for("os.detalhe", os_id=os_id))
 
@@ -648,13 +820,70 @@ def reabrir(os_id):
 @bp.route("/tablet")
 @exige("os_executar")
 def tablet():
+    filtro, params = "", [list(ABERTAS)]
+    if session.get("perfil") == "manutentor":
+        filtro = "AND o.responsavel_id=%s"
+        params.append(session["uid"])
     fila = db.query(f"""
         SELECT o.*, e.codigo AS eq_codigo, e.nome AS eq_nome, r.nome AS responsavel
         FROM ordens_servico o
         LEFT JOIN equipamentos e ON e.id=o.equipamento_id
         LEFT JOIN usuarios r ON r.id=o.responsavel_id
-        WHERE o.status IN ('aberta','em_andamento','pausada','aguardando_peca','reprovada')
+        WHERE o.status = ANY(%s) AND o.responsavel_id IS NOT NULL {filtro}
         ORDER BY CASE o.status WHEN 'em_andamento' THEN 0 ELSE 1 END,
                  {db.ordem_crit('o.criticidade')},
-                 o.maquina_parada DESC, o.data_abertura""")
+                 o.maquina_parada DESC, o.data_abertura""", params)
     return render_template("os/tablet.html", fila=fila, STATUS_LABEL=STATUS_LABEL)
+
+
+# ══════════════════════════════════════════════════════════════════
+#  APOIO AOS AVISOS POR E-MAIL
+# ══════════════════════════════════════════════════════════════════
+def _detalhe_os(os_id):
+    return db.um("""SELECT o.*, e.codigo AS eq_codigo, e.nome AS eq_nome
+                    FROM ordens_servico o
+                    LEFT JOIN equipamentos e ON e.id=o.equipamento_id
+                    WHERE o.id=%s""", (os_id,))
+
+
+def _eq_txt(o):
+    """Texto legível do equipamento a partir de um registro de OS."""
+    if not o:
+        return "—"
+    if o.get("eq_codigo"):
+        return f"{o['eq_codigo']} — {o.get('eq_nome') or ''}".strip(" —")
+    return o.get("equipamento_outro") or "Equipamento não cadastrado"
+
+
+def _texto_equipamento(eq_id, eq_outro):
+    if eq_id:
+        e = db.um("SELECT codigo, nome FROM equipamentos WHERE id=%s", (eq_id,))
+        if e:
+            return f"{e['codigo']} — {e['nome']}"
+    return eq_outro or "Equipamento não cadastrado"
+
+
+def _texto_local(est_id, ct_id):
+    partes = []
+    if est_id:
+        partes.append(db.scalar("SELECT nome FROM estabelecimentos WHERE id=%s",
+                                (est_id,), default="") or "")
+    if ct_id:
+        partes.append(db.scalar("SELECT nome FROM centros_trabalho WHERE id=%s",
+                                (ct_id,), default="") or "")
+    return " · ".join([p for p in partes if p]) or "—"
+
+
+def _nome_criticidade(codigo):
+    n = db.um("SELECT nome FROM criticidades WHERE codigo=%s", (codigo,))
+    return f"{codigo} — {n['nome']}" if n else codigo
+
+
+def _horas(segundos):
+    s = int(segundos or 0)
+    h, m = s // 3600, (s % 3600) // 60
+    if h and m:
+        return f"{h}h {m}min"
+    if h:
+        return f"{h}h"
+    return f"{m}min"

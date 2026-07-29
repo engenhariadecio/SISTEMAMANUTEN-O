@@ -34,7 +34,7 @@ print("✅ login ok")
 
 # ── Rotas GET ──
 rotas_get = [
-    "/", "/os/", "/os/nova", "/os/intervencao", "/os/tablet",
+    "/", "/os/", "/os/nova", "/os/intervencao", "/os/tablet", "/os/triagem",
     "/preventivas/", "/preventivas/planos", "/preventivas/planos/novo",
     "/preventivas/oms", "/preventivas/plano-materiais", "/preventivas/reprogramacoes",
     "/rondas/", "/rondas/cadastro",
@@ -77,6 +77,16 @@ assert eq_status == "parado", "equipamento não marcado como parado"
 print("   equipamento marcado como parado ✅")
 
 check("detalhe OS", c.get(f"/os/{o['id']}"))
+
+# Triagem: o líder distribui antes de qualquer execução
+assert db.um("SELECT * FROM ordens_servico WHERE id=%s", (o["id"],))["responsavel_id"] is None
+print("   nasce sem responsável, aguardando triagem ✅")
+check("triagem", c.get("/os/triagem"))
+check("atribuir", c.post(f"/os/{o['id']}/assumir",
+                         data={"responsavel_id": 1}, follow_redirects=True))
+assert db.scalar("SELECT status FROM ordens_servico WHERE id=%s",
+                 (o["id"],), default="") == "atribuida"
+print("   distribuída pelo líder ✅")
 
 # Cronômetro
 check("iniciar", c.post(f"/os/{o['id']}/acao/iniciar", follow_redirects=True))

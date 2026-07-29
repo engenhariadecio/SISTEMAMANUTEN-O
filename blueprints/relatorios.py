@@ -752,6 +752,16 @@ def rel_usuarios():
 # ══════════════════════════════════════════════════════════════════
 COLUNAS_BINARIAS = {"imagem", "dados", "foto", "senha_hash"}
 
+# Linhas da tabela "parametros" que guardam segredos e não entram no backup
+PARAMETROS_SECRETOS = {"smtp_senha"}
+
+
+def _sem_segredos(tabela, linhas):
+    """Remove do backup as linhas que guardam senhas."""
+    if tabela != "parametros":
+        return linhas
+    return [l for l in (linhas or []) if l.get("chave") not in PARAMETROS_SECRETOS]
+
 
 def tabelas_do_banco():
     t = db.query("""SELECT table_name FROM information_schema.tables
@@ -811,7 +821,7 @@ def backup_excel():
         if not cols:
             continue
         lista = ", ".join(f'"{c}"' for c in cols)
-        dados = db.query(f'SELECT {lista} FROM "{tabela}" ORDER BY 1')
+        dados = _sem_segredos(tabela, db.query(f'SELECT {lista} FROM "{tabela}" ORDER BY 1'))
         resumo.append([tabela, len(dados or []), len(cols)])
         # O Excel limita o nome da aba a 31 caracteres
         ws = wb.create_sheet(tabela[:31])
@@ -849,7 +859,7 @@ def backup_json():
         if not cols:
             continue
         lista = ", ".join(f'"{c}"' for c in cols)
-        dados = db.query(f'SELECT {lista} FROM "{tabela}" ORDER BY 1')
+        dados = _sem_segredos(tabela, db.query(f'SELECT {lista} FROM "{tabela}" ORDER BY 1'))
         saida["tabelas"][tabela] = [
             {c: _json_valor(r[c]) for c in cols} for r in dados or []]
 

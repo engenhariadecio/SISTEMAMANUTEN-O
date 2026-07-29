@@ -33,6 +33,7 @@ PERMISSOES = {
     "os_abrir":         TODOS,
     "os_ver_todas":     ("admin", "supervisao", "lider", "manutentor", "analista"),
     "os_executar":      EXECUCAO,
+    "os_triagem":       GESTAO,          # só a liderança distribui as OS
     "os_aprovar":       TODOS,          # o solicitante aprova a própria OS
     "preventiva_ver":   ("admin", "supervisao", "lider", "manutentor", "analista"),
     "preventiva_exec":  EXECUCAO,

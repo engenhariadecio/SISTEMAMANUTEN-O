@@ -24,6 +24,40 @@ Integra o **Sistema NLAG** (controle do depósito) como módulo nativo.
 
 ## O que o sistema faz
 
+### Fluxo de uma corretiva
+
+```
+  SOLICITANTE            LÍDER                 MANUTENTOR            ANALISTA
+       │                   │                       │                    │
+   abre a OS ──────► fica na TRIAGEM               │                    │
+       │             (e-mail p/ liderança)         │                    │
+       │                   │                       │                    │
+       │            escolhe o manutentor ──► é notificado por e-mail    │
+       │                   │                       │                    │
+       │                   │                 inicia · cronômetro        │
+       │                   │                       │                    │
+       │                   │                 pede peça ──► tem saldo? ──┤
+       │                   │                       │      sim → baixa   │
+       │                   │                       │      não → formulário
+       │                   │                       │                    │
+       │                   │                 conclui (defeito + causa)  │
+       │                   │                       │                    │
+  ◄─── e-mail: resolvido? ─────────────────────────┘                    │
+       │                                                                │
+   aprova → FINALIZADA                                                  │
+   reprova → volta para o MESMO manutentor
+```
+
+A OS **não vai direto para a equipe**: ela para na tela de triagem do líder, que
+escolhe quem atende. Enquanto isso nenhum manutentor é notificado nem consegue
+iniciar. A tela de triagem mostra a carga de cada manutentor (quantas OS em aberto,
+quem está executando agora) para ajudar a equilibrar a distribuição.
+
+Exceção: a **intervenção de emergência** não passa por triagem — o manutentor abre
+para si mesmo e o cronômetro começa na hora.
+
+Uma OS reprovada **volta para o mesmo manutentor**, não para a fila de triagem.
+
 ### Módulo — Manutenções Corretivas
 - Abertura de OS pelo solicitante: estabelecimento → tipo → centro de trabalho →
   equipamento → problema → anexos (foto/vídeo/PDF).
@@ -119,6 +153,85 @@ Quando o material chega, o manutentor da OS é notificado para retomar o serviç
 - Defeitos e causas mais frequentes.
 - Ficha completa do equipamento: histórico de corretivas, preventivas e terceiros.
 
+### Notificações por e-mail
+
+Sete eventos disparam e-mail automaticamente, cada um ligável em
+*Administração → E-mail* sem precisar de novo deploy:
+
+| Evento | Quem recebe |
+|---|---|
+| OS aberta | **líder e supervisão** (para a triagem) |
+| OS atribuída | **o manutentor escolhido pelo líder** |
+| **OS concluída** | **quem abriu a OS**, com botão de aprovar/reprovar |
+| OS aprovada | o manutentor que executou |
+| OS reprovada | manutentor, líder e supervisão |
+| Peça solicitada | analista de materiais e líder |
+| Material recebido | o manutentor da OS |
+
+Os e-mails saem em HTML com a identidade visual da empresa, uma tabela de
+detalhes (equipamento, criticidade, defeito, tempo de reparo) e um botão que
+leva direto à tela certa. Também vai uma versão em texto puro, para clientes
+que não renderizam HTML.
+
+**Configuração pela tela**, em *Administração → E-mail* — nenhuma variável de
+ambiente é necessária:
+
+1. Escolha o provedor (Gmail, Outlook/Microsoft 365, Brevo ou outro). Servidor,
+   porta e segurança são preenchidos sozinhos.
+2. Informe o e-mail que vai enviar e a senha.
+3. Salve e use o botão **Testar**.
+
+A senha é gravada **criptografada** com uma chave derivada da `SECRET_KEY`,
+nunca aparece na tela e é excluída dos backups em Excel e JSON.
+Se a `SECRET_KEY` for trocada, a senha antiga fica ilegível e a tela avisa para
+cadastrá-la de novo — nada mais quebra.
+
+O **endereço do sistema** usado nos links é detectado automaticamente a partir
+do próprio acesso. Só preencha se quiser forçar um domínio específico.
+
+**Provedores disponíveis**, cada um com o passo a passo dentro da própria tela:
+
+| Provedor | Exige 2FA? | Observação |
+|---|---|---|
+| **Gmail** *(padrão)* | Sim | 500 e-mails/dia · use uma conta exclusiva do sistema |
+| **Brevo** | Não | 300 e-mails/dia grátis · usa uma chave SMTP do painel |
+| **SendGrid** | Não | 100/dia grátis · o usuário é sempre `apikey` |
+| **Outlook / Microsoft 365** | Depende | Muitos tenants bloqueiam autenticação básica |
+| **Outro servidor** | Não | Relay interno da empresa; muitos dispensam login |
+
+> **Gmail:** crie uma conta Google **exclusiva do sistema**, que ninguém use no
+> dia a dia. A verificação em duas etapas fica no celular do administrador e não
+> atrapalha ninguém. Gere a senha de aplicativo em
+> `myaccount.google.com/apppasswords` — o Google escondeu esse link da tela de
+> Segurança, então use o endereço direto.
+>
+> Se por algum motivo não for possível ativar o 2FA, use o **Brevo**: ele
+> autentica com uma chave própria e envia *em nome* do endereço que você quiser,
+> depois de confirmá-lo no painel.
+
+As variáveis `SMTP_*` continuam funcionando como valor inicial, mas o que
+estiver salvo pela tela tem prioridade.
+
+**Cada e-mail leva à tela exata da ação:**
+
+| Evento | Para onde o botão leva |
+|---|---|
+| Nova OS | tela de triagem |
+| OS atribuída | a OS, no bloco do cronômetro |
+| OS concluída | a OS, no bloco de aprovação |
+| OS reprovada | a OS, no cronômetro |
+| Peça solicitada | a solicitação, pronta para tratar |
+| Material recebido | a OS, para retomar |
+
+O bloco de destino pisca ao abrir, para não se perder na tela.
+
+A tela de administração mostra o estado da configuração, a última falha de
+envio, quantos usuários estão sem e-mail cadastrado e o botão de teste.
+
+**Envio não bloqueia o sistema.** Os e-mails saem em segundo plano; se o
+servidor estiver fora do ar, a OS é aberta e gravada normalmente e o erro fica
+registrado para consulta.
+
 ### Central de Relatórios (Excel)
 
 Onze relatórios em `.xlsx`, com filtro de período e atalhos de 30/90/180/365 dias.
@@ -193,9 +306,9 @@ preventiva, rondas, manutenção em terceiros, parâmetros do sistema e auditori
 | Perfil | O que pode fazer |
 |---|---|
 | **Solicitante de OS** | Abre OS, acompanha apontamentos, aprova/reprova o serviço |
-| **Manutentor** | Fila por criticidade, cronômetro, OS de emergência, check lists, rondas e **pedido de peça**. Não abre o depósito NLAG |
+| **Manutentor** | Vê **apenas as OS atribuídas a ele**, cronômetro, OS de emergência, check lists, rondas e pedido de peça. Não abre o depósito NLAG nem se auto-atribui |
 | **Analista de Materiais** | Relatórios + **dono do depósito NLAG** — entradas, saídas, cadastro, inventário, etiquetas, coletor, importações, alertas — e trata as solicitações |
-| **Líder de Manutenção** | Tudo do manutentor + cadastros, estoques mínimos, visto de liberação e acesso ao depósito |
+| **Líder de Manutenção** | **Faz a triagem e distribui as OS** + cadastros, estoques mínimos, visto de liberação e acesso ao depósito |
 | **Supervisão** | Visão gerencial completa e relatórios globais |
 | **Administrador** | Controle total, incluindo usuários e parâmetros |
 | **Visualizador** | Apenas consulta de saldo |
@@ -254,6 +367,10 @@ git push -u origin main
    | `SECRET_KEY` | uma chave aleatória longa (veja abaixo) |
    | `APP_USUARIO` | `admin` |
    | `APP_SENHA` | a senha do primeiro administrador |
+
+   Para ativar os e-mails, acrescente também `SMTP_HOST`, `SMTP_PORT`,
+   `SMTP_SEGURANCA`, `SMTP_USUARIO`, `SMTP_SENHA`, `SMTP_REMETENTE` e `APP_URL`
+   (ver a seção *Notificações por e-mail*).
 
    Para gerar a `SECRET_KEY`:
    ```bash
@@ -331,6 +448,8 @@ sistema-manutencao-decio/
 ├── app.py                    Aplicação Flask (factory, filtros, tratamento de erros)
 ├── db.py                     Conexão, schema completo e carga inicial
 ├── auth.py                   Perfis e matriz de permissões
+├── mailer.py                 Envio de e-mail (SMTP) e modelos das mensagens
+├── email_config.py           Configuração do e-mail, com senha criptografada
 ├── blueprints/
 │   ├── auth_bp.py            Login, perfil, notificações
 │   ├── home.py               Painel principal
@@ -342,10 +461,12 @@ sistema-manutencao-decio/
 │   ├── indicadores.py        MTBF, MTTR, % preventivas, custos, parque fabril
 │   ├── admin.py              Usuários, equipamentos, cadastros, parâmetros
 │   └── api.py                Endpoints JSON usados pelas telas
-├── templates/                47 telas (Jinja2 + Bootstrap 5)
+├── templates/                49 telas (Jinja2 + Bootstrap 5)
 ├── static/
 │   ├── css/app.css           Identidade visual (verde #28A353 · azul #10477D)
 │   └── img/logo_decio.png
+├── scripts/
+│   └── backup_windows.bat    Backup agendável no Windows
 ├── requirements.txt
 ├── Procfile · railway.json · nixpacks.toml · runtime.txt
 ├── .env.example · .gitignore
@@ -362,12 +483,23 @@ cria o que falta e nunca apaga dados existentes.
 
 **Pela tela** — *Administração → Backup* oferece download em Excel e em JSON.
 
-**Backup integral** (inclui imagens e anexos), com a `DATABASE_URL` do Railway:
+**Backup integral** (inclui senhas, imagens e anexos).
+
+> Use a **`DATABASE_PUBLIC_URL`** do serviço Postgres, não a `DATABASE_URL`.
+> A segunda aponta para `postgres.railway.internal`, que só existe dentro da
+> rede do Railway e não resolve da sua máquina.
 
 ```bash
-pg_dump "COLE_AQUI_A_DATABASE_URL" -Fc -f backup_manutencao.dump
+pg_dump "postgresql://postgres:SENHA@xxxxx.proxy.rlwy.net:12345/railway" -Fc -f backup_manutencao.dump
 pg_restore -d "URL_DO_DESTINO" --clean --if-exists backup_manutencao.dump
 ```
+
+No Windows, use `scripts\backup_windows.bat` — basta editar a URL e a pasta de
+destino. Ele nomeia o arquivo com a data, cria a pasta se não existir e apaga
+backups com mais de 60 dias. Agende no Agendador de Tarefas para rodar semanalmente.
+
+⚠️ O `pg_restore --clean` **apaga os dados do banco de destino** antes de restaurar.
+Nunca aponte para o banco de produção sem ter certeza.
 
 **Atualizar o sistema:** basta dar `git push`. O Railway refaz o deploy e o
 schema se atualiza sozinho, sem perder dados.
@@ -380,6 +512,9 @@ python teste_plano_materiais.py  # plano de materiais
 python teste_criticidade.py      # níveis e matriz de criticidade
 python teste_perfis.py           # permissões e fluxo de pedido de peça
 python teste_relatorios.py       # relatórios em Excel e backup
+python teste_email.py            # disparos de e-mail
+python teste_fluxo.py            # fluxo ponta a ponta com triagem
+python teste_email_config.py     # configuração de e-mail pela tela
 ```
 
 ---

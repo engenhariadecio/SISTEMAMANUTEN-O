@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block titulo %}Triagem de OS{% endblock %}
+{% block cabecalho %}Triagem — Distribuição das Ordens de Serviço{% endblock %}
+{% block titulo_mob %}Triagem{% endblock %}
+
+{% block conteudo %}
+
+{% if fila %}
+<div class="alert alert-warning d-flex align-items-center gap-2">
+  <i class="bi bi-inboxes-fill fs-5"></i>
+  <div><strong>{{ fila|length }} ordem(ns) aguardando distribuição.</strong>
+    Enquanto você não escolher o manutentor, a OS fica parada e ninguém é notificado.</div>
+</div>
+{% endif %}
+
+<div class="row g-3">
+  <div class="col-xl-9">
+    {% for o in fila %}
+    <div class="card mb-3">
+      <div class="card-body">
+        <div class="d-flex flex-wrap align-items-start gap-3">
+          <span class="crit" style="width:38px;height:38px;font-size:1.05rem;
+                background:{{ CRIT.get(o.criticidade, {}).get('cor', '#5B93C4') }}">
+            {{ o.criticidade }}</span>
+
+          <div class="flex-grow-1" style="min-width:260px">
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+              <span class="fw-bold fs-6">OS #{{ o.numero }}</span>
+              <span class="fw-bold">{{ o.eq_codigo or o.equipamento_outro or 'Equipamento não cadastrado' }}</span>
+              {% if o.maquina_parada %}
+              <span class="pill text-danger"><i class="bi bi-exclamation-octagon-fill"></i>
+                MÁQUINA PARADA</span>{% endif %}
+              {% if not o.eq_codigo %}
+              <span class="pill text-warning"><i class="bi bi-plus-circle"></i> cadastrar equipamento</span>{% endif %}
+              {% if o.anexos %}
+              <span class="pill"><i class="bi bi-paperclip"></i> {{ o.anexos }}</span>{% endif %}
+            </div>
+            <div class="text-mudo mb-2" style="font-size:.84rem">{{ o.eq_nome or '' }}</div>
+            <p class="mb-2">{{ o.descricao_problema }}</p>
+            <div class="d-flex flex-wrap gap-3 text-mudo" style="font-size:.8rem">
+              <span><i class="bi bi-person me-1"></i>{{ o.solicitante }}</span>
+              <span><i class="bi bi-geo-alt me-1"></i>{{ o.estabelecimento or '—' }} ·
+                {{ o.setor or o.tipo }}</span>
+              <span><i class="bi bi-clock me-1"></i>{{ o.data_abertura|dt }}
+                <strong class="{{ 'text-danger' if o.horas_espera and o.horas_espera > 24 }}">
+                  (há {{ (o.horas_espera or 0)|round(0)|int }}h)</strong></span>
+            </div>
+          </div>
+
+          <div style="min-width:290px">
+            <form method="post" action="{{ url_for('os.assumir', os_id=o.id) }}"
+                  class="d-flex gap-2">
+              <input type="hidden" name="voltar" value="triagem">
+              <select name="responsavel_id" class="form-select form-select-sm" required>
+                <option value="">— Escolher manutentor —</option>
+                {% for m in equipe %}
+                <option value="{{ m.id }}">
+                  {{ m.nome }}{% if m.em_aberto %} ({{ m.em_aberto }} em aberto){% endif %}</option>
+                {% endfor %}
+              </select>
+              <button class="btn btn-sm btn-decio text-nowrap">
+                <i class="bi bi-send-fill me-1"></i> Distribuir</button>
+            </form>
+            <div class="d-flex gap-2 mt-2">
+              <a href="{{ url_for('os.detalhe', os_id=o.id) }}"
+                 class="btn btn-sm btn-outline-secondary flex-grow-1">
+                <i class="bi bi-eye me-1"></i> Ver detalhes</a>
+              {% if o.anexos %}
+              <a href="{{ url_for('os.detalhe', os_id=o.id) }}#anexos"
+                 class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-paperclip"></i></a>{% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="card">
+      <div class="card-body text-center text-mudo py-5">
+        <i class="bi bi-check2-circle fs-1 d-block mb-2 opacity-50"></i>
+        Nenhuma OS aguardando distribuição.
+        <div class="mt-3">
+          <a href="{{ url_for('os.lista') }}" class="btn btn-sm btn-outline-secondary">
+            Ver as ordens em andamento</a>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="col-xl-3">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-people-fill me-1"></i> Carga da equipe</div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Manutentor</th><th class="text-center">Aberto</th>
+            <th class="text-center">Ativo</th></tr></thead>
+          <tbody>
+            {% for m in equipe %}
+            <tr>
+              <td style="font-size:.84rem">{{ m.nome }}</td>
+              <td class="text-center">
+                <span class="pill {{ 'text-danger' if m.em_aberto and m.em_aberto > 5 }}">
+                  {{ m.em_aberto }}</span></td>
+              <td class="text-center">
+                {% if m.em_execucao %}
+                <i class="bi bi-play-circle-fill text-success" title="Executando agora"></i>
+                {% else %}<span class="text-mudo">—</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="card-footer bg-white">
+        <small class="text-mudo">
+          "Aberto" conta tudo que ainda não foi concluído. Use para equilibrar a
+          distribuição entre a equipe.
+        </small>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

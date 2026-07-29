@@ -26,6 +26,19 @@ def hoje():
     return agora().date()
 
 
+def fmt(valor, formato="%d/%m/%Y %H:%M"):
+    """Formata data/hora no fuso de Brasília para uso em textos e e-mails."""
+    if not valor:
+        return "—"
+    try:
+        return valor.astimezone(TZ_BR).strftime(formato)
+    except (AttributeError, ValueError, TypeError):
+        try:
+            return valor.strftime(formato)
+        except Exception:
+            return str(valor)
+
+
 def get_pool():
     global _POOL
     if _POOL is None:
@@ -664,6 +677,15 @@ def _seed_inicial():
         ("empresa", "Décio Metalúrgica"),
         ("tolerancia_preventiva_dias", "7"),
         ("custo_hh_padrao", "45.00"),
+        ("email_os_aberta", "1"),
+        ("email_os_atribuida", "1"),
+        ("email_os_concluida", "1"),
+        ("email_os_aprovada", "1"),
+        ("email_os_reprovada", "1"),
+        ("email_material_solicitado", "1"),
+        ("email_material_recebido", "1"),
+        ("email_estoque_minimo", "0"),
+        ("email_preventiva_semana", "0"),
     ]:
         executar("INSERT INTO parametros (chave, valor) VALUES (%s,%s) "
                  "ON CONFLICT (chave) DO NOTHING", (chave, valor))

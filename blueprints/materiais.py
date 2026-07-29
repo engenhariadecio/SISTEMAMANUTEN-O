@@ -224,7 +224,7 @@ def saida():
                           LEFT JOIN materiais m ON m.codigo=mv.codigo
                           WHERE mv.tipo='SAIDA' ORDER BY mv.data_hora DESC LIMIT 15""")
     abertas = db.query("""SELECT id, numero FROM ordens_servico
-                          WHERE status IN ('em_andamento','aguardando_peca','aberta')
+                          WHERE status IN ('em_andamento','aguardando_peca','atribuida','aberta')
                           ORDER BY numero DESC LIMIT 50""")
     return render_template("mat/saida.html", ultimas=ultimas, abertas=abertas)
 

@@ -11,6 +11,8 @@ from flask import (Blueprint, render_template, request, redirect, url_for,
 from werkzeug.security import generate_password_hash
 
 import db
+import mailer
+import email_config
 from auth import exige, PERFIS
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -407,6 +409,76 @@ def terceiros():
 
 
 # ══════════════════════════════════════════════════════════════════
+#  E-MAIL
+# ══════════════════════════════════════════════════════════════════
+@bp.route("/email", methods=["GET", "POST"])
+@exige("admin")
+def email():
+    if request.method == "POST":
+        acao = request.form.get("acao")
+
+        if acao == "servidor":
+            email_config.salvar_formulario(request.form)
+            db.registrar_log(session["uid"], session["nome"], "config_email",
+                             detalhe=request.form.get("smtp_usuario", ""))
+            flash("Configuração de envio salva.", "success")
+
+        elif acao == "eventos":
+            for chave in mailer.EVENTOS:
+                ligado = "1" if request.form.get("ev_" + chave) == "1" else "0"
+                db.executar("""INSERT INTO parametros (chave, valor) VALUES (%s,%s)
+                               ON CONFLICT (chave) DO UPDATE SET valor=EXCLUDED.valor""",
+                            ("email_" + chave, ligado))
+            flash("Preferências de e-mail salvas.", "success")
+
+        elif acao == "limpar_senha":
+            email_config.apagar_senha()
+            flash("Senha removida. Cadastre uma nova para voltar a enviar.", "warning")
+
+        elif acao == "teste":
+            destino = (request.form.get("destino") or "").strip()
+            if not mailer.email_valido(destino):
+                flash("Informe um endereço de e-mail válido.", "warning")
+            else:
+                c = email_config.configuracao()
+                html = mailer.montar_html(
+                    "Teste de configuração", "Se você recebeu, está tudo certo",
+                    [("Servidor", f"{c['smtp_host']}:{c['smtp_porta']}"),
+                     ("Segurança", (c["smtp_seguranca"] or "").upper()),
+                     ("Conta de envio", c["smtp_usuario"]),
+                     ("Remetente", c["smtp_remetente"]),
+                     ("Enviado por", session["nome"]),
+                     ("Data", db.agora().strftime("%d/%m/%Y às %H:%M"))],
+                    mensagem="Este é um envio de teste do Sistema Centralizado "
+                             "de Manutenção da Décio Metalúrgica.",
+                    botao=("Abrir o sistema", mailer.url(url_for("home.index"))))
+                ok, erro = mailer.enviar_agora(
+                    [destino], "[Manutenção] Teste de configuração de e-mail", html)
+                if ok:
+                    flash(f"E-mail de teste enviado para {destino}. "
+                          "Confira também a caixa de spam.", "success")
+                else:
+                    flash(f"Falha no envio: {erro}", "danger")
+            db.registrar_log(session["uid"], session["nome"], "teste_email",
+                             detalhe=destino)
+
+        return redirect(url_for("admin.email"))
+
+    ativos = {chave: mailer.evento_ativo(chave) for chave in mailer.EVENTOS}
+    sem_email = db.query("""SELECT nome, usuario, perfil FROM usuarios
+                            WHERE ativo=TRUE AND (email IS NULL OR email='')
+                            ORDER BY perfil, nome""")
+    com_email = db.scalar("""SELECT COUNT(*) AS n FROM usuarios
+                             WHERE ativo=TRUE AND email IS NOT NULL AND email<>''""")
+    return render_template("admin/email.html", st=mailer.status(),
+                           cfg=email_config.configuracao(),
+                           PROVEDORES=email_config.PROVEDORES,
+                           EVENTOS=mailer.EVENTOS, ativos=ativos,
+                           sem_email=sem_email, com_email=com_email,
+                           url_sistema=request.host_url.rstrip("/"))
+
+
+# ══════════════════════════════════════════════════════════════════
 #  PARÂMETROS E AUDITORIA
 # ══════════════════════════════════════════════════════════════════
 @bp.route("/parametros", methods=["GET", "POST"])
@@ -420,7 +492,8 @@ def parametros():
                             (chave[2:], valor.strip()))
         flash("Parâmetros salvos.", "success")
         return redirect(url_for("admin.parametros"))
-    itens = db.query("SELECT * FROM parametros ORDER BY chave")
+    itens = db.query("SELECT * FROM parametros "
+                     "WHERE chave NOT LIKE 'email%%' ORDER BY chave")
     return render_template("admin/parametros.html", itens=itens)
 
 

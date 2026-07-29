@@ -11,6 +11,7 @@ from flask import (Blueprint, render_template, request, redirect, url_for,
                    flash, session, abort, Response)
 
 import db
+import mailer
 from auth import exige, pode
 
 bp = Blueprint("sol", __name__, url_prefix="/solicitacoes")
@@ -116,7 +117,7 @@ def nova():
 
     centros = db.query("SELECT * FROM centros_custo WHERE ativo=TRUE ORDER BY codigo")
     ordens = db.query("""SELECT id, numero, descricao_problema FROM ordens_servico
-                         WHERE status IN ('aberta','em_andamento','pausada','aguardando_peca')
+                         WHERE status IN ('aberta','atribuida','em_andamento','pausada','aguardando_peca')
                          ORDER BY numero DESC LIMIT 100""")
     return render_template("sol/nova.html", centros=centros, ordens=ordens, TIPOS=TIPOS,
                            os_id=os_id)
@@ -172,9 +173,22 @@ def detalhe(sid):
                                VALUES (%s,%s,'material',%s)""",
                             (s["os_id"], session["uid"],
                              f"Material da SM #{s['numero']} recebido: {s['descricao']}"))
+                link = url_for("os.detalhe", os_id=s["os_id"])
                 db.notificar(o["responsavel_id"], f"OS #{o['numero']} — material chegou",
-                             f"{s['descricao']} disponível. A OS pode ser retomada.",
-                             url_for("os.detalhe", os_id=s["os_id"]))
+                             f"{s['descricao']} disponível. A OS pode ser retomada.", link)
+                mailer.avisar(
+                    "material_recebido",
+                    mailer.emails_dos_usuarios([o["responsavel_id"], s["solicitante_id"]]),
+                    assunto=f"[Manutenção] Material da SM #{s['numero']} chegou — OS #{o['numero']}",
+                    titulo=f"Material disponível — SM #{s['numero']}",
+                    subtitulo=f"A OS #{o['numero']} pode ser retomada",
+                    mensagem=comentario or "O material solicitado já está disponível.",
+                    itens=[("Item", s["descricao"]),
+                           ("Código", s["codigo_final"] or s["codigo"] or "—"),
+                           ("Quantidade", f"{float(s['quantidade']):g}"),
+                           ("Situação", nova_sit),
+                           ("Liberado por", session["nome"])],
+                    botao=("Retomar a OS", mailer.url(link) + "#cronometro"))
         flash("Solicitação atualizada.", "success")
         return redirect(url_for("sol.detalhe", sid=sid))
 

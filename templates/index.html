@@ -7,8 +7,16 @@
 
 <!-- ── KPIs ── -->
 <div class="row g-3 mb-3">
+  {% if pode('os_triagem') %}
   <div class="col-6 col-lg-2">
-    <a href="{{ url_for('os.lista', status='aberta') }}" class="card text-decoration-none text-reset h-100">
+    <a href="{{ url_for('os.triagem') }}" class="card text-decoration-none text-reset h-100">
+      <div class="kpi"><div class="icone i-amb"><i class="bi bi-inboxes-fill"></i></div>
+        <div><div class="valor">{{ resumo.triagem }}</div><div class="rotulo">Para distribuir</div></div></div>
+    </a>
+  </div>
+  {% endif %}
+  <div class="col-6 col-lg-2">
+    <a href="{{ url_for('os.lista', status='abertas') }}" class="card text-decoration-none text-reset h-100">
       <div class="kpi"><div class="icone i-azul"><i class="bi bi-inbox-fill"></i></div>
         <div><div class="valor">{{ resumo.abertas }}</div><div class="rotulo">Abertas</div></div></div>
     </a>
@@ -94,7 +102,7 @@
   <div class="col-xl-8">
     <div class="card h-100">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-list-task me-1"></i> Fila de atendimento — ordenada por criticidade</span>
+        <span><i class="bi bi-list-task me-1"></i> {% if u.perfil == "manutentor" %}Minhas ordens de serviço{% else %}Fila de atendimento — ordenada por criticidade{% endif %}</span>
         <a href="{{ url_for('os.lista') }}" class="btn btn-sm btn-outline-secondary">Ver todas</a>
       </div>
       <div class="card-body p-0">

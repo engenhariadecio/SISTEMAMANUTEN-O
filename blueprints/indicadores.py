@@ -149,7 +149,7 @@ def parque():
     equipamentos = db.query("""
         SELECT e.*, ct.nome AS setor, est.nome AS estabelecimento,
           (SELECT COUNT(*) FROM ordens_servico o WHERE o.equipamento_id=e.id
-             AND o.status IN ('aberta','em_andamento','pausada','aguardando_peca','reprovada'))
+             AND o.status IN ('aberta','atribuida','em_andamento','pausada','aguardando_peca','reprovada'))
            AS os_abertas
         FROM equipamentos e
         LEFT JOIN centros_trabalho ct ON ct.id=e.centro_trabalho_id

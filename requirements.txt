@@ -6,3 +6,4 @@ Pillow==10.4.0
 python-barcode==0.15.1
 openpyxl==3.1.5
 tzdata==2025.1
+cryptography==43.0.1

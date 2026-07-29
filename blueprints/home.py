@@ -17,7 +17,10 @@ def index():
 
     # ── Cartões de resumo ──
     resumo = {
-        "abertas": db.scalar("SELECT COUNT(*) AS n FROM ordens_servico WHERE status='aberta'"),
+        "triagem": db.scalar("""SELECT COUNT(*) AS n FROM ordens_servico
+                                WHERE status='aberta' AND responsavel_id IS NULL"""),
+        "abertas": db.scalar("""SELECT COUNT(*) AS n FROM ordens_servico
+                                WHERE status IN ('aberta','atribuida')"""),
         "andamento": db.scalar(
             "SELECT COUNT(*) AS n FROM ordens_servico WHERE status IN ('em_andamento','pausada')"),
         "aguardando_peca": db.scalar(
@@ -55,7 +58,13 @@ def index():
         """SELECT COUNT(*) AS n FROM solicitacoes_material
            WHERE situacao NOT IN ('Concluído','Cancelado','Recusado')""")
 
-    # ── Fila de OS por criticidade (visão do manutentor) ──
+    # ── Fila de atendimento ──
+    ABERTAS = ("aberta", "atribuida", "em_andamento", "pausada",
+               "aguardando_peca", "reprovada")
+    filtro, params = "", [list(ABERTAS)]
+    if perfil == "manutentor":
+        filtro = "AND o.responsavel_id=%s"
+        params.append(uid)
     fila = db.query(f"""
         SELECT o.*, e.codigo AS eq_codigo, e.nome AS eq_nome,
                s.nome AS solicitante, r.nome AS responsavel
@@ -63,10 +72,11 @@ def index():
         LEFT JOIN equipamentos e ON e.id = o.equipamento_id
         LEFT JOIN usuarios s ON s.id = o.solicitante_id
         LEFT JOIN usuarios r ON r.id = o.responsavel_id
-        WHERE o.status IN ('aberta','em_andamento','pausada','aguardando_peca','reprovada')
-        ORDER BY {db.ordem_crit('o.criticidade')},
+        WHERE o.status = ANY(%s) {filtro}
+        ORDER BY CASE WHEN o.responsavel_id IS NULL THEN 0 ELSE 1 END,
+                 {db.ordem_crit('o.criticidade')},
                  o.maquina_parada DESC, o.data_abertura
-        LIMIT 12""")
+        LIMIT 12""", params)
 
     # ── Minhas OS (solicitante) ──
     minhas = db.query("""

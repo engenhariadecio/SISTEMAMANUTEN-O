@@ -69,9 +69,9 @@ print("\n── Acessos do manutentor ──")
 for rota in ["/", "/os/", "/os/tablet", "/os/nova", "/os/intervencao"]:
     assert liberado(mnt, rota), f"manutentor deveria acessar {rota}"
 print("   ✅ painel, fila, tablet, abertura de OS e intervenção de emergência")
-for rota in ["/admin/usuarios", "/admin/equipamentos", "/indicadores/"]:
+for rota in ["/admin/usuarios", "/admin/equipamentos", "/indicadores/", "/os/triagem"]:
     assert bloqueado(mnt, rota), f"manutentor NÃO deveria acessar {rota}"
-print("   ✅ bloqueado em administração e indicadores")
+print("   ✅ bloqueado em administração, indicadores e triagem")
 
 # ══ PEDIDO DE PEÇA — COM SALDO ═════════════════════════════════
 print("\n── Pedido de peça com saldo no NLAG ──")
@@ -91,6 +91,13 @@ sol.post("/os/nova", data={"estabelecimento_id": est["id"], "tipo": "Industrial"
                            "descricao_problema": "Torreta travada — teste de peça"},
          follow_redirects=True)
 o = db.um("SELECT * FROM ordens_servico ORDER BY id DESC LIMIT 1")
+
+# A OS passa pela triagem antes de chegar ao manutentor
+adm = app.test_client()
+adm.post("/login", data={"usuario": "admin", "senha": "teste123"})
+id_jaime = db.scalar("SELECT id FROM usuarios WHERE usuario='jaime'")
+adm.post(f"/os/{o['id']}/assumir", data={"responsavel_id": id_jaime},
+         follow_redirects=True)
 mnt.post(f"/os/{o['id']}/acao/iniciar", follow_redirects=True)
 
 sm_antes = db.scalar("SELECT COUNT(*) AS n FROM solicitacoes_material")

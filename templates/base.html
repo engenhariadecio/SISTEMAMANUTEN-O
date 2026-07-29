@@ -43,6 +43,7 @@
   <div class="nav-section">Corretivas</div>
   {{ item('os.nova', 'plus-circle-fill', 'Abrir OS') }}
   {{ item('os.lista', 'list-task', 'Ordens de serviço') }}
+  {{ item('os.triagem', 'inboxes-fill', 'Triagem de OS', 'os_triagem') }}
   {% if pode('os_executar') %}
     {{ item('os.tablet', 'tablet-landscape', 'Modo tablet', 'os_executar') }}
     {{ item('os.intervencao', 'lightning-charge-fill', 'Intervenção rápida', 'os_executar') }}
@@ -80,6 +81,7 @@
   {{ item('admin.usuarios', 'people-fill', 'Usuários', 'admin') }}
   {{ item('admin.cadastros', 'diagram-3-fill', 'Cadastros gerais', 'cadastros') }}
   {{ item('admin.terceiros', 'truck', 'Manutenção terceiros', 'cadastros') }}
+  {{ item('admin.email', 'envelope-at-fill', 'E-mail', 'admin') }}
   {{ item('rel.backup', 'shield-fill-check', 'Backup', 'backup') }}
   {% endif %}
 

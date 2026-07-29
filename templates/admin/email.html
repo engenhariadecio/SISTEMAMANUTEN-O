@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+{% block titulo %}E-mail{% endblock %}
+{% block cabecalho %}Notificações por E-mail{% endblock %}
+{% block titulo_mob %}E-mail{% endblock %}
+
+{% block conteudo %}
+
+{% if st.configurado %}
+<div class="alert alert-success d-flex align-items-center gap-2">
+  <i class="bi bi-check-circle-fill fs-5"></i>
+  <div><strong>Pronto para enviar.</strong>
+    As notificações saem de <code>{{ st.remetente }}</code> pelo servidor
+    <code>{{ st.host }}:{{ st.porta }}</code>.</div>
+</div>
+{% elif not cfg.ativo %}
+<div class="alert alert-secondary d-flex align-items-center gap-2">
+  <i class="bi bi-pause-circle-fill fs-5"></i>
+  <div><strong>Envio desativado.</strong> As notificações continuam aparecendo no sino
+    do sistema, mas nenhum e-mail sai.</div>
+</div>
+{% else %}
+<div class="alert alert-warning d-flex align-items-center gap-2">
+  <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+  <div><strong>Falta configurar o envio.</strong>
+    Preencha o formulário abaixo. O sistema segue funcionando normalmente enquanto isso.</div>
+</div>
+{% endif %}
+
+{% if cfg.senha_ilegivel %}
+<div class="alert alert-danger">
+  <strong><i class="bi bi-key-fill me-1"></i>A senha guardada não pode mais ser lida.</strong>
+  Isso acontece quando a <code>SECRET_KEY</code> do sistema é trocada. Cadastre a senha
+  novamente no formulário abaixo.
+</div>
+{% endif %}
+
+{% if st.ultimo_erro %}
+<div class="alert alert-danger">
+  <strong><i class="bi bi-x-octagon-fill me-1"></i>Última falha de envio</strong>
+  {% if st.erro_em %}<small class="text-mudo">({{ st.erro_em|dt }})</small>{% endif %}
+  <div class="mt-1"><code style="font-size:.82rem">{{ st.ultimo_erro }}</code></div>
+</div>
+{% endif %}
+
+<div class="row g-3">
+  <!-- ══ SERVIDOR ══ -->
+  <div class="col-xl-7">
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-envelope-at-fill me-1"></i>
+        Conta que envia as notificações</div>
+      <div class="card-body">
+        <form method="post" id="fServidor">
+          <input type="hidden" name="acao" value="servidor">
+
+          <div class="mb-3">
+            <label class="form-label">Como o sistema vai enviar</label>
+            <div class="row g-2">
+              {% for chave, p in PROVEDORES.items() %}
+              <div class="col-6 col-lg-4">
+                <input type="radio" class="btn-check prov" name="smtp_provedor"
+                       id="p{{ chave }}" value="{{ chave }}"
+                       data-host="{{ p.host }}" data-porta="{{ p.porta }}"
+                       data-seg="{{ p.seguranca }}"
+                       data-fixo="{{ p.usuario_fixo or '' }}"
+                       {{ 'checked' if cfg.smtp_provedor == chave }}>
+                <label class="btn btn-outline-secondary w-100 text-start h-100"
+                       for="p{{ chave }}" style="font-size:.8rem;line-height:1.3">
+                  <span class="fw-bold d-block">{{ p.rotulo }}</span>
+                  <span class="text-mudo" style="font-size:.72rem">{{ p.resumo }}</span>
+                  {% if p.sem_2fa %}
+                  <span class="pill text-success mt-1 d-inline-block"
+                        style="font-size:.62rem">sem 2FA</span>{% endif %}
+                </label>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-7">
+              <label class="form-label" id="rotuloUsuario">Conta / login de envio
+                <span class="text-danger">*</span></label>
+              <input name="smtp_usuario" id="smtpUsuario" class="form-control"
+                     value="{{ cfg.smtp_usuario }}" required
+                     placeholder="engenhariadecio2026@gmail.com">
+              <small class="text-mudo" id="dicaUsuario">É a conta que autentica
+                no servidor de envio.</small>
+            </div>
+            <div class="col-md-5">
+              <label class="form-label">Senha
+                {% if cfg.senha_definida and not cfg.senha_ilegivel %}
+                <span class="pill text-success"><i class="bi bi-check-lg"></i> cadastrada</span>
+                {% endif %}
+              </label>
+              <input type="password" name="smtp_senha" class="form-control"
+                     placeholder="{{ '•••••••• (deixe em branco para manter)'
+                                     if cfg.senha_definida else 'senha de aplicativo' }}"
+                     autocomplete="new-password">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Remetente que aparece para quem recebe</label>
+              <input type="email" name="smtp_remetente" class="form-control"
+                     value="{{ cfg.smtp_remetente }}"
+                     placeholder="engenhariadecio2026@gmail.com">
+              <small class="text-mudo">Em branco, usa a própria conta de envio.</small>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Nome que aparece no remetente</label>
+              <input name="smtp_nome_remetente" class="form-control"
+                     value="{{ cfg.smtp_nome_remetente }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Endereço do sistema</label>
+              <input name="app_url" class="form-control" value="{{ cfg.app_url }}"
+                     placeholder="{{ url_sistema }}">
+              <small class="text-mudo">
+                {% if st.app_url_automatica %}
+                Em branco o sistema detecta sozinho — hoje está usando
+                <code>{{ st.app_url }}</code>.
+                {% else %}Usado nos links dos botões dentro do e-mail.{% endif %}
+              </small>
+            </div>
+          </div>
+
+          <div id="avancado" class="row g-3 mt-1 {{ 'd-none' if cfg.smtp_provedor != 'outro' }}">
+            <div class="col-md-6">
+              <label class="form-label">Servidor SMTP</label>
+              <input name="smtp_host" id="smtpHost" class="form-control" value="{{ cfg.smtp_host }}">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Porta</label>
+              <input type="number" name="smtp_porta" id="smtpPorta" class="form-control"
+                     value="{{ cfg.smtp_porta }}">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Segurança</label>
+              <select name="smtp_seguranca" id="smtpSeg" class="form-select">
+                {% for op in ['tls','ssl','nenhuma'] %}
+                <option value="{{ op }}" {{ 'selected' if cfg.smtp_seguranca == op }}>
+                  {{ op|upper }}</option>{% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="d-flex flex-wrap align-items-center gap-3 mt-3 pt-3 border-top">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" name="smtp_ativo" value="1"
+                     id="ativo" {{ 'checked' if cfg.ativo }}>
+              <label class="form-check-label" for="ativo">Envio de e-mail ativo</label>
+            </div>
+            <button class="btn btn-decio ms-auto"><i class="bi bi-check-lg me-1"></i> Salvar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-send-fill me-1"></i> Enviar e-mail de teste</div>
+      <div class="card-body">
+        <form method="post" class="d-flex gap-2">
+          <input type="hidden" name="acao" value="teste">
+          <input type="email" name="destino" class="form-control"
+                 value="{{ u.email or '' }}" placeholder="seu.email@intelbras.com.br" required>
+          <button class="btn btn-azul text-nowrap"><i class="bi bi-send me-1"></i> Testar</button>
+        </form>
+        <small class="text-mudo d-block mt-2">
+          Salve a configuração antes de testar. O resultado aparece aqui em cima,
+          com a mensagem exata do servidor em caso de falha.
+        </small>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><i class="bi bi-toggles me-1"></i> Quais eventos enviam e-mail</div>
+      <div class="card-body">
+        <form method="post">
+          <input type="hidden" name="acao" value="eventos">
+          {% for chave, info in EVENTOS.items() %}
+          <div class="cl-item d-flex align-items-center gap-3">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" name="ev_{{ chave }}" value="1"
+                     id="ev{{ chave }}" {{ 'checked' if ativos[chave] }}>
+            </div>
+            <label class="flex-grow-1 mb-0" for="ev{{ chave }}" style="cursor:pointer">
+              <span class="cl-desc d-block">{{ info[0] }}</span>
+            </label>
+          </div>
+          {% endfor %}
+          <button class="btn btn-decio mt-2"><i class="bi bi-check-lg me-1"></i> Salvar</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ AJUDA E DESTINATÁRIOS ══ -->
+  <div class="col-xl-5">
+    {% for chave, p in PROVEDORES.items() %}
+    <div class="card mb-3 ajuda" data-prov="{{ chave }}"
+         {{ 'hidden' if cfg.smtp_provedor != chave }}>
+      <div class="card-header"><i class="bi bi-life-preserver me-1"></i>
+        Como configurar — {{ p.rotulo }}</div>
+      <div class="card-body">
+        <div class="alert alert-{{ 'success' if p.sem_2fa else 'warning' }} py-2"
+             style="font-size:.85rem">
+          <i class="bi bi-{{ 'check-circle-fill' if p.sem_2fa else 'exclamation-triangle-fill' }} me-1"></i>
+          {{ p.aviso|safe }}
+        </div>
+        <ol style="font-size:.86rem;padding-left:1.1rem;line-height:1.8">
+          {% for passo in p.passos %}<li>{{ passo|safe }}</li>{% endfor %}
+        </ol>
+      </div>
+    </div>
+    {% endfor %}
+
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-person-lines-fill me-1"></i> Quem recebe</div>
+      <div class="card-body">
+        <p style="font-size:.87rem" class="mb-2">
+          As notificações vão para o e-mail cadastrado em cada usuário, conforme o perfil
+          e o evento. <strong>{{ com_email }}</strong> usuário(s) ativo(s) com e-mail.
+        </p>
+        {% if sem_email %}
+        <div class="alert alert-warning py-2 mb-2" style="font-size:.83rem">
+          <i class="bi bi-exclamation-triangle-fill me-1"></i>
+          <strong>{{ sem_email|length }} sem e-mail</strong> — não recebem nada:
+        </div>
+        <div style="max-height:170px;overflow-y:auto">
+          <table class="table table-sm mb-0">
+            {% for s in sem_email %}
+            <tr><td style="font-size:.82rem">{{ s.nome }}</td>
+              <td><span class="pill">{{ PERFIS.get(s.perfil, s.perfil) }}</span></td></tr>
+            {% endfor %}
+          </table>
+        </div>
+        <a href="{{ url_for('admin.usuarios') }}" class="btn btn-sm btn-outline-secondary w-100 mt-2">
+          <i class="bi bi-pencil me-1"></i> Cadastrar os e-mails</a>
+        {% else %}
+        <div class="text-success" style="font-size:.86rem">
+          <i class="bi bi-check-circle-fill me-1"></i>Todos os usuários ativos têm e-mail.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-link-45deg me-1"></i> Para onde cada e-mail leva</div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0" style="font-size:.82rem">
+          <tr><td>Nova OS</td><td class="text-mudo">→ tela de triagem</td></tr>
+          <tr><td>OS atribuída</td><td class="text-mudo">→ a OS, pronta para iniciar</td></tr>
+          <tr><td>OS concluída</td><td class="text-mudo">→ direto no bloco de aprovação</td></tr>
+          <tr><td>OS reprovada</td><td class="text-mudo">→ a OS, para retomar</td></tr>
+          <tr><td>Peça solicitada</td><td class="text-mudo">→ a solicitação, para tratar</td></tr>
+          <tr><td>Material recebido</td><td class="text-mudo">→ a OS, para retomar</td></tr>
+        </table>
+      </div>
+      <div class="card-footer bg-white">
+        <small class="text-mudo">Quem clica no botão do e-mail cai na tela certa;
+          se não estiver logado, entra e é levado até lá.</small>
+      </div>
+    </div>
+
+    {% if cfg.senha_definida %}
+    <form method="post" onsubmit="return confirm('Remover a senha cadastrada?')">
+      <input type="hidden" name="acao" value="limpar_senha">
+      <button class="btn btn-sm btn-outline-danger w-100">
+        <i class="bi bi-trash me-1"></i> Remover a senha guardada</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block js %}
+<script>
+const avancado = document.getElementById('avancado');
+const usuario = document.getElementById('smtpUsuario');
+const rotulo = document.getElementById('rotuloUsuario');
+const dica = document.getElementById('dicaUsuario');
+
+function aplicar(r) {
+  const outro = r.value === 'outro';
+  avancado.classList.toggle('d-none', !outro);
+  if (!outro) {
+    document.getElementById('smtpHost').value = r.dataset.host;
+    document.getElementById('smtpPorta').value = r.dataset.porta;
+    document.getElementById('smtpSeg').value = r.dataset.seg;
+  }
+  document.querySelectorAll('.ajuda').forEach(a => {
+    a.hidden = a.dataset.prov !== r.value;
+  });
+
+  const fixo = r.dataset.fixo;
+  if (fixo) {
+    usuario.value = fixo;
+    usuario.readOnly = true;
+    rotulo.textContent = 'Usuário (fixo para este serviço)';
+    dica.textContent = 'Este serviço usa sempre este usuário — a chave vai no campo Senha.';
+  } else {
+    usuario.readOnly = false;
+    rotulo.innerHTML = 'Conta / login de envio <span class="text-danger">*</span>';
+    dica.textContent = 'É a conta que autentica no servidor de envio.';
+  }
+}
+
+document.querySelectorAll('.prov').forEach(r => {
+  r.addEventListener('change', () => aplicar(r));
+  if (r.checked) aplicar(r);
+});
+</script>
+{% endblock %}

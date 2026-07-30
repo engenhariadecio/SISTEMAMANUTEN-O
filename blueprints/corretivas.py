@@ -14,13 +14,37 @@ from auth import pode, exige, EXECUCAO
 
 bp = Blueprint("os", __name__, url_prefix="/os")
 
-# Tipos de cronômetro
+# Tipos de intervalo do cronômetro
 TIPOS_TEMPO = {
     "trabalho": "Em execução",
     "pausa": "Pausada",
+    "cafe": "Pausa para café",
     "almoco": "Almoço",
+    "laboral": "Ginástica laboral",
+    "reuniao": "Reunião",
+    "treinamento": "Treinamento",
+    "banheiro": "Pausa pessoal",
+    "fim_turno": "Fim de turno",
+    "outra_os": "Atendendo outra OS",
     "aguardando_peca": "Aguardando peça",
+    "aguardando_terceiro": "Aguardando terceiro",
+    "aguardando_producao": "Aguardando liberação da produção",
 }
+
+# Motivos oferecidos ao manutentor ao pausar: (chave, rótulo, ícone)
+MOTIVOS_PAUSA = [
+    ("cafe", "Café", "cup-hot-fill"),
+    ("almoco", "Almoço", "egg-fried"),
+    ("laboral", "Ginástica laboral", "person-arms-up"),
+    ("banheiro", "Pausa pessoal", "person-walking"),
+    ("reuniao", "Reunião", "people-fill"),
+    ("treinamento", "Treinamento", "mortarboard-fill"),
+    ("outra_os", "Atendendo outra OS", "arrow-left-right"),
+    ("aguardando_terceiro", "Aguardando terceiro", "truck"),
+    ("aguardando_producao", "Aguardando a produção liberar", "hourglass-split"),
+    ("fim_turno", "Fim de turno", "moon-stars-fill"),
+    ("pausa", "Outro motivo", "three-dots"),
+]
 
 # Situações consideradas "em aberto" na fila e nos filtros
 ABERTAS = ("aberta", "atribuida", "em_andamento", "pausada",
@@ -290,7 +314,9 @@ def detalhe(os_id):
                            aberto=aberto, materiais=materiais, anexos=anexos,
                            solicitacoes=solicitacoes, manutentores=manutentores,
                            defeitos=defeitos, causas=causas, totais=totais,
-                           TIPOS_TEMPO=TIPOS_TEMPO, STATUS_LABEL=STATUS_LABEL)
+                           TIPOS_TEMPO=TIPOS_TEMPO, MOTIVOS_PAUSA=MOTIVOS_PAUSA,
+                           STATUS_LABEL=STATUS_LABEL,
+                           triagem_obrigatoria=triagem_obrigatoria())
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -364,6 +390,31 @@ def assumir(os_id):
                     else url_for("os.detalhe", os_id=os_id))
 
 
+@bp.route("/<int:os_id>/assumir-para-mim", methods=["POST"])
+@exige("os_executar")
+def assumir_para_mim(os_id):
+    """O manutentor puxa para si uma OS ainda sem responsável."""
+    o = db.um("SELECT * FROM ordens_servico WHERE id=%s", (os_id,))
+    if not o:
+        abort(404)
+    if o["responsavel_id"]:
+        flash("Esta OS já tem um responsável.", "warning")
+        return redirect(url_for("os.detalhe", os_id=os_id))
+    if triagem_obrigatoria() and session.get("perfil") == "manutentor":
+        flash("A liderança precisa distribuir esta OS antes.", "warning")
+        return redirect(url_for("os.detalhe", os_id=os_id))
+
+    db.executar("""UPDATE ordens_servico SET responsavel_id=%s,
+                   status = CASE WHEN status='aberta' THEN 'atribuida' ELSE status END
+                   WHERE id=%s""", (session["uid"], os_id))
+    _apontar(os_id, "atribuicao", f"{session['nome']} assumiu a OS.")
+    db.notificar(o["solicitante_id"], f"OS #{o['numero']} — manutentor designado",
+                 f"{session['nome']} assumiu sua ordem de serviço.",
+                 url_for("os.detalhe", os_id=os_id))
+    flash("Você assumiu esta OS. Pode iniciar o atendimento.", "success")
+    return redirect(url_for("os.detalhe", os_id=os_id))
+
+
 # ══════════════════════════════════════════════════════════════════
 #  TRIAGEM — tela do líder
 # ══════════════════════════════════════════════════════════════════
@@ -400,6 +451,12 @@ def triagem():
                            STATUS_LABEL=STATUS_LABEL)
 
 
+def triagem_obrigatoria():
+    """Quando desligada, o manutentor pode puxar uma OS ainda não distribuída."""
+    return str(db.scalar("SELECT valor FROM parametros WHERE chave='triagem_obrigatoria'",
+                         default="1") or "1") == "1"
+
+
 def _responsavel_ou_gestao(o):
     """Só o manutentor designado — ou a liderança — mexe na OS."""
     if session.get("perfil") in ("admin", "supervisao", "lider"):
@@ -417,8 +474,15 @@ def acao(os_id, acao):
         flash("Esta OS está atribuída a outro manutentor.", "warning")
         return redirect(url_for("os.detalhe", os_id=os_id))
     if o["responsavel_id"] is None:
-        flash("A OS ainda não foi distribuída pela liderança.", "warning")
-        return redirect(url_for("os.detalhe", os_id=os_id))
+        if triagem_obrigatoria() and session.get("perfil") == "manutentor":
+            flash("A OS ainda não foi distribuída pela liderança.", "warning")
+            return redirect(url_for("os.detalhe", os_id=os_id))
+        # Sem triagem obrigatória (ou sendo gestão), quem age assume a OS
+        db.executar("""UPDATE ordens_servico SET responsavel_id=%s,
+                       status = CASE WHEN status='aberta' THEN 'atribuida' ELSE status END
+                       WHERE id=%s""", (session["uid"], os_id))
+        _apontar(os_id, "atribuicao", f"{session['nome']} assumiu a OS.")
+        o = db.um("SELECT * FROM ordens_servico WHERE id=%s", (os_id,))
 
     if acao == "iniciar":
         if not o["data_inicio"]:
@@ -431,13 +495,24 @@ def acao(os_id, acao):
                      url_for("os.detalhe", os_id=os_id))
 
     elif acao in ("pausar", "almoco", "aguardando_peca"):
-        mapa = {"pausar": "pausa", "almoco": "almoco", "aguardando_peca": "aguardando_peca"}
-        tipo = mapa[acao]
-        novo_status = "aguardando_peca" if acao == "aguardando_peca" else "pausada"
+        if acao == "aguardando_peca":
+            tipo = "aguardando_peca"
+        elif acao == "almoco":
+            tipo = "almoco"
+        else:
+            tipo = request.form.get("motivo") or "pausa"
+            if tipo not in TIPOS_TEMPO:
+                tipo = "pausa"
+
+        novo_status = "aguardando_peca" if tipo.startswith("aguardando") else "pausada"
         db.executar("UPDATE ordens_servico SET status=%s WHERE id=%s", (novo_status, os_id))
         _iniciar_tempo(os_id, tipo)
-        _apontar(os_id, tipo, TIPOS_TEMPO[tipo] + ".")
-        if acao == "aguardando_peca":
+
+        observacao = request.form.get("observacao", "").strip()
+        texto = TIPOS_TEMPO.get(tipo, "Pausada")
+        _apontar(os_id, tipo, f"{texto}." + (f" {observacao}" if observacao else ""))
+
+        if tipo == "aguardando_peca":
             db.notificar(o["solicitante_id"], f"OS #{o['numero']} aguardando peça",
                          "A execução está pausada até a chegada do material.",
                          url_for("os.detalhe", os_id=os_id))

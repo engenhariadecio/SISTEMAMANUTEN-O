@@ -342,3 +342,14 @@ tr[data-crit] { box-shadow: inset 4px 0 0 var(--cor-crit, #CFD8E5); }
   box-shadow: 0 4px 14px rgba(16,71,125,.28); transform: translateY(-1px);
 }
 .btn { transition: transform .12s, box-shadow .12s, background .15s; }
+
+
+/* Estados do cronômetro por motivo de pausa */
+.crono-cafe, .crono-almoco, .crono-banheiro, .crono-laboral,
+.crono-reuniao, .crono-treinamento, .crono-fim_turno, .crono-outra_os {
+  background: rgba(185,125,8,.12); color: var(--ambar);
+}
+.crono-aguardando_peca, .crono-aguardando_terceiro, .crono-aguardando_producao {
+  background: rgba(16,71,125,.1); color: var(--azul);
+}
+.st-atribuida { background: rgba(16,71,125,.13); color: var(--azul); }

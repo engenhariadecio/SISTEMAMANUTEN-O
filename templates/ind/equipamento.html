@@ -53,7 +53,8 @@
     <div class="card"><div class="card-body p-0">
       <div class="table-responsive"><table class="table table-hover mb-0">
         <thead><tr><th>OS</th><th>Data</th><th>Problema</th><th>Defeito</th><th>Causa</th>
-          <th>Responsável</th><th>Status</th><th class="text-end">Tempo</th></tr></thead>
+          <th>Responsável</th><th>Status</th><th class="text-end">Tempo</th>
+          <th style="width:52px" class="text-center">Abrir</th></tr></thead>
         <tbody>
           {% for o in historico %}
           <tr style="cursor:pointer" onclick="location.href='{{ url_for('os.detalhe', os_id=o.id) }}'">
@@ -65,9 +66,15 @@
             <td><small>{{ o.responsavel or '—' }}</small></td>
             <td><span class="st st-{{ o.status }}">{{ o.status.replace('_',' ') }}</span></td>
             <td class="text-end"><small>{{ o.tempo_trabalho_seg|dur }}</small></td>
+            <td class="text-center">
+              <a href="{{ url_for('os.detalhe', os_id=o.id) }}"
+                 class="btn btn-sm btn-decio px-2 py-1" title="Abrir a OS"
+                 onclick="event.stopPropagation()">
+                <i class="bi bi-box-arrow-up-right"></i></a>
+            </td>
           </tr>
           {% else %}
-          <tr><td colspan="8" class="text-center text-mudo py-4">Sem histórico de corretivas.</td></tr>
+          <tr><td colspan="9" class="text-center text-mudo py-4">Sem histórico de corretivas.</td></tr>
           {% endfor %}
         </tbody>
       </table></div>
@@ -78,7 +85,8 @@
     <div class="card"><div class="card-body p-0">
       <table class="table table-hover mb-0">
         <thead><tr><th>OM</th><th>Plano</th><th>Período</th><th>Semana</th>
-          <th>Prevista</th><th>Executada</th><th>Status</th></tr></thead>
+          <th>Prevista</th><th>Executada</th><th>Status</th>
+          <th style="width:52px" class="text-center">Abrir</th></tr></thead>
         <tbody>
           {% for o in oms %}
           <tr style="cursor:pointer" onclick="location.href='{{ url_for('prev.om', om_id=o.id) }}'">
@@ -89,9 +97,15 @@
             <td><small>{{ o.data_prevista|data }}</small></td>
             <td><small>{{ o.data_fim|data }}</small></td>
             <td><span class="st st-{{ 'concluida' if o.status=='concluida' else 'aberta' }}">{{ o.status }}</span></td>
+            <td class="text-center">
+              <a href="{{ url_for('prev.om', om_id=o.id) }}"
+                 class="btn btn-sm btn-decio px-2 py-1" title="Abrir a OM"
+                 onclick="event.stopPropagation()">
+                <i class="bi bi-box-arrow-up-right"></i></a>
+            </td>
           </tr>
           {% else %}
-          <tr><td colspan="7" class="text-center text-mudo py-4">Sem preventivas registradas.</td></tr>
+          <tr><td colspan="8" class="text-center text-mudo py-4">Sem preventivas registradas.</td></tr>
           {% endfor %}
         </tbody>
       </table>

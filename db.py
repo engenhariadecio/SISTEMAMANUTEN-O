@@ -679,6 +679,7 @@ def _seed_inicial():
         ("empresa", "Décio Metalúrgica"),
         ("tolerancia_preventiva_dias", "7"),
         ("custo_hh_padrao", "45.00"),
+        ("triagem_obrigatoria", "1"),
         ("email_os_aberta", "1"),
         ("email_os_atribuida", "1"),
         ("email_os_concluida", "1"),

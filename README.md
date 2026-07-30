@@ -72,7 +72,12 @@ Uma OS reprovada **volta para o mesmo manutentor**, não para a fila de triagem.
   manual justificado, com registro em auditoria.
 - Máquina parada sobe **um nível** de prioridade na abertura da OS.
 - Cronômetro no chão de fábrica: **Iniciar · Pausar · Almoço · Aguardando peça · Concluir**.
-  Cada intervalo é gravado separadamente, permitindo apurar tempo real de reparo.
+- **Pausa com motivo**: café, almoço, ginástica laboral, pausa pessoal, reunião,
+  treinamento, atendendo outra OS, aguardando terceiro, aguardando a produção
+  liberar, fim de turno ou outro motivo com observação livre. Cada intervalo é
+  gravado com o seu tipo, então o tempo de reparo não fica inflado por paradas
+  que não são serviço — o MTTR sai correto.
+- Conclusão com **relatório, fotos e vídeos**, que o solicitante vê na hora de aprovar.
 - Apontamentos automáticos: quem assumiu, material solicitado, pausas, conclusão.
   O solicitante é notificado a cada evento.
 - Solicitação de peça (cadastro / expansão / transferência) direto de dentro da OS.
@@ -558,6 +563,7 @@ python teste_fluxo.py            # fluxo ponta a ponta com triagem
 python teste_email_config.py     # configuração de e-mail pela tela
 python teste_recorte.py          # recorte de acesso por perfil
 python teste_nlag.py             # migração do NLAG e catálogo de peças
+python teste_cronometro.py       # ciclo do manutentor, do início à aprovação
 ```
 
 ---

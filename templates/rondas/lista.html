@@ -52,7 +52,8 @@
   <div class="card-body p-0">
     <table class="table table-hover mb-0">
       <thead><tr><th>Data</th><th>Ronda</th><th>Executada por</th><th>Status</th>
-        <th class="text-center">Não conformes</th><th></th></tr></thead>
+        <th class="text-center">Não conformes</th><th></th>
+        <th style="width:52px" class="text-center">Abrir</th></tr></thead>
       <tbody>
         {% for h in historico %}
         <tr style="cursor:pointer" onclick="location.href='{{ url_for('rondas.executar', exec_id=h.id) }}'">
@@ -64,9 +65,15 @@
             {% if h.noks %}<span class="pill text-danger fw-bold">{{ h.noks }}</span>
             {% else %}<span class="text-mudo">0</span>{% endif %}</td>
           <td class="text-end"><small class="text-mudo">{{ h.concluido_em|dt if h.concluido_em else '' }}</small></td>
+          <td class="text-center">
+            <a href="{{ url_for('rondas.executar', exec_id=h.id) }}"
+               class="btn btn-sm btn-decio px-2 py-1" title="Abrir a ronda"
+               onclick="event.stopPropagation()">
+              <i class="bi bi-box-arrow-up-right"></i></a>
+          </td>
         </tr>
         {% else %}
-        <tr><td colspan="6" class="text-center text-mudo py-4">Nenhuma ronda registrada ainda.</td></tr>
+        <tr><td colspan="7" class="text-center text-mudo py-4">Nenhuma ronda registrada ainda.</td></tr>
         {% endfor %}
       </tbody>
     </table>

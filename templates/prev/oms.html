@@ -20,7 +20,9 @@
     <div class="table-responsive">
       <table class="table table-hover mb-0">
         <thead><tr><th>OM</th><th>Equipamento</th><th>Plano</th><th>Período</th>
-          <th>Semana</th><th>Prevista</th><th>Manutentor</th><th>Status</th><th>Tempo</th></tr></thead>
+          <th>Semana</th><th>Prevista</th><th>Manutentor</th><th>Status</th><th>Tempo</th>
+          {% if pode('preventiva_cad') %}<th style="width:210px">Destinar a</th>{% endif %}
+          <th style="width:52px" class="text-center">Abrir</th></tr></thead>
         <tbody>
           {% for o in itens %}
           <tr style="cursor:pointer" onclick="location.href='{{ url_for('prev.om', om_id=o.id) }}'">
@@ -55,9 +57,15 @@
               </form>
             </td>
             {% endif %}
+            <td class="text-center">
+              <a href="{{ url_for('prev.om', om_id=o.id) }}"
+                 class="btn btn-sm btn-decio px-2 py-1" title="Abrir o check list"
+                 onclick="event.stopPropagation()">
+                <i class="bi bi-box-arrow-up-right"></i></a>
+            </td>
           </tr>
           {% else %}
-          <tr><td colspan="10" class="text-center text-mudo py-4">
+          <tr><td colspan="11" class="text-center text-mudo py-4">
             Nenhuma OM. Gere a partir da <a href="{{ url_for('prev.grade') }}">grade de programação</a>.</td></tr>
           {% endfor %}
         </tbody>

@@ -33,7 +33,8 @@
       <table class="table table-hover mb-0">
         <thead><tr><th>SM</th><th>Data</th><th>Solicitante</th><th>Código</th><th>Descrição</th>
           <th>Tipo</th><th class="text-end">Qtd</th><th>C. Custo</th><th>OS</th>
-          <th>PR</th><th>Situação</th><th class="text-end">Dias</th></tr></thead>
+          <th>PR</th><th>Situação</th><th class="text-end">Dias</th>
+          <th style="width:52px" class="text-center">Abrir</th></tr></thead>
         <tbody>
           {% for s in itens %}
           <tr style="cursor:pointer" onclick="location.href='{{ url_for('sol.detalhe', sid=s.id) }}'">
@@ -49,9 +50,15 @@
             <td><small class="text-mudo">{{ s.num_pr or '—' }}</small></td>
             <td><span class="badge bg-{{ CORES.get(s.situacao,'secondary') }}">{{ s.situacao }}</span></td>
             <td class="text-end"><small class="{{ 'text-danger fw-bold' if s.dias and s.dias > 15 }}">{{ s.dias }}</small></td>
+            <td class="text-center">
+              <a href="{{ url_for('sol.detalhe', sid=s.id) }}"
+                 class="btn btn-sm btn-decio px-2 py-1" title="Abrir a solicitação"
+                 onclick="event.stopPropagation()">
+                <i class="bi bi-box-arrow-up-right"></i></a>
+            </td>
           </tr>
           {% else %}
-          <tr><td colspan="12" class="text-center text-mudo py-4">Nenhuma solicitação.</td></tr>
+          <tr><td colspan="13" class="text-center text-mudo py-4">Nenhuma solicitação.</td></tr>
           {% endfor %}
         </tbody>
       </table>

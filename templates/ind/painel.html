@@ -57,7 +57,8 @@
         <table class="table mb-0">
           <thead><tr><th>Equipamento</th><th class="text-end">Falhas</th>
             <th class="text-end">MTBF (h)</th><th class="text-end">MTTR (h)</th>
-            <th class="text-end">Disponib.</th></tr></thead>
+            <th class="text-end">Disponib.</th>
+            <th style="width:52px" class="text-center">Abrir</th></tr></thead>
           <tbody>
             {% for e in top_falhas %}
             <tr style="cursor:pointer" onclick="location.href='{{ url_for('ind.equipamento', eq_id=e.id) }}'">
@@ -69,9 +70,15 @@
               <td class="text-end">{{ e.mttr_h }}</td>
               <td class="text-end">
                 <span class="{{ 'text-danger fw-bold' if e.disponibilidade < 95 }}">{{ e.disponibilidade }}%</span></td>
+              <td class="text-center">
+                <a href="{{ url_for('ind.equipamento', eq_id=e.id) }}"
+                   class="btn btn-sm btn-decio px-2 py-1" title="Abrir a ficha"
+                   onclick="event.stopPropagation()">
+                  <i class="bi bi-box-arrow-up-right"></i></a>
+              </td>
             </tr>
             {% else %}
-            <tr><td colspan="5" class="text-center text-mudo py-3">Sem falhas registradas no período.</td></tr>
+            <tr><td colspan="6" class="text-center text-mudo py-3">Sem falhas registradas no período.</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -84,7 +91,8 @@
       <div class="card-body p-0">
         <table class="table mb-0">
           <thead><tr><th>Equipamento</th><th class="text-end">Peças</th>
-            <th class="text-end">Mão de obra</th><th class="text-end">Total</th></tr></thead>
+            <th class="text-end">Mão de obra</th><th class="text-end">Total</th>
+            <th style="width:52px" class="text-center">Abrir</th></tr></thead>
           <tbody>
             {% for e in top_custo %}
             <tr style="cursor:pointer" onclick="location.href='{{ url_for('ind.equipamento', eq_id=e.id) }}'">
@@ -93,9 +101,15 @@
               <td class="text-end">{{ e.custo_pecas|moeda }}</td>
               <td class="text-end">{{ e.custo_hh|moeda }}</td>
               <td class="text-end fw-bold">{{ e.custo_total|moeda }}</td>
+              <td class="text-center">
+                <a href="{{ url_for('ind.equipamento', eq_id=e.id) }}"
+                   class="btn btn-sm btn-decio px-2 py-1" title="Abrir a ficha"
+                   onclick="event.stopPropagation()">
+                  <i class="bi bi-box-arrow-up-right"></i></a>
+              </td>
             </tr>
             {% else %}
-            <tr><td colspan="4" class="text-center text-mudo py-3">Sem custos apurados.</td></tr>
+            <tr><td colspan="5" class="text-center text-mudo py-3">Sem custos apurados.</td></tr>
             {% endfor %}
           </tbody>
         </table>

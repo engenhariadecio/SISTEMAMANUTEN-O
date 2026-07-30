@@ -272,14 +272,6 @@ tr[data-crit] { box-shadow: inset 4px 0 0 var(--cor-crit, #CFD8E5); }
 .ponto.manutencao { background: var(--ambar); }
 @keyframes pisca { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
 
-/* ── MODO TABLET ─────────────────────────────────────────────── */
-.tablet-card {
-  border-radius: 16px; padding: 18px; border: 2px solid var(--borda);
-  background: #fff; display: block; color: inherit; height: 100%;
-}
-.tablet-card:hover { color: inherit; border-color: var(--azul-clr); }
-.tablet-card[data-crit] { border-left: 8px solid var(--cor-crit, #CFD8E5); }
-.btn-tablet { font-size: 1.05rem; padding: 14px 18px; border-radius: 13px; font-weight: 800; }
 
 /* ── CHECKLIST ───────────────────────────────────────────────── */
 .cl-item { border: 1px solid var(--borda); border-radius: 11px; padding: 12px 14px;
@@ -433,7 +425,7 @@ tr[data-crit] { box-shadow: inset 4px 0 0 var(--cor-crit, #CFD8E5); }
   background: var(--verde); border-color: var(--verde); color: #fff;
 }
 .btn-check:checked + .btn-outline-danger {
-  background: var(--neg); border-color: var(--neg); color: #fff;
+  background: var(--azul); border-color: var(--azul); color: #fff;
 }
 .btn-check:focus + .btn {
   box-shadow: 0 0 0 .18rem rgba(40,163,83,.22);
@@ -450,11 +442,80 @@ a:hover { color: var(--verde-esc); }
 }
 .form-check-input:focus { box-shadow: 0 0 0 .18rem rgba(40,163,83,.2); }
 
-/* ── Destrutivo permanece vermelho, por segurança de uso ── */
-.btn-danger { background: var(--neg); border-color: var(--neg); }
-.btn-danger:hover { background: #B93A33; border-color: #B93A33; }
-.btn-outline-danger { color: var(--neg); border-color: var(--neg); }
-.btn-outline-danger:hover { background: var(--neg); border-color: var(--neg); color: #fff; }
+/* ── Ações destrutivas: azul escuro da marca, nunca vermelho ──
+   A distinção do que não tem volta é feita pela confirmação em tela,
+   não pela cor, para o site inteiro seguir a identidade da empresa. */
+.btn-danger {
+  background: var(--azul); border-color: var(--azul); color: #fff;
+}
+.btn-danger:hover, .btn-danger:focus {
+  background: #082A4D; border-color: #082A4D; color: #fff;
+}
+.btn-outline-danger {
+  color: var(--azul); border-color: var(--azul);
+}
+.btn-outline-danger:hover, .btn-outline-danger:focus {
+  background: var(--azul); border-color: var(--azul); color: #fff;
+}
+.btn-link.text-danger, .btn-link.text-danger:hover { color: var(--azul) !important; }
 
 /* Foco visível em qualquer botão, na cor da marca */
 .btn:focus-visible { box-shadow: 0 0 0 .2rem rgba(40,163,83,.3); outline: none; }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   RESPONSIVO — as tabelas viram cartões no celular e no tablet,
+   sem precisar de uma tela separada.
+   ═══════════════════════════════════════════════════════════════ */
+@media (max-width: 820px) {
+  .tabela-cartao thead { display: none; }
+  .tabela-cartao, .tabela-cartao tbody, .tabela-cartao tr, .tabela-cartao td {
+    display: block; width: 100%;
+  }
+  .tabela-cartao tr {
+    border: 1px solid var(--borda); border-radius: 13px; margin-bottom: 11px;
+    padding: 12px 14px; background: #fff; position: relative;
+    box-shadow: 0 2px 8px rgba(20,32,46,.06);
+  }
+  .tabela-cartao tr[data-crit] {
+    border-left: 6px solid var(--cor-crit, #CFD8E5); box-shadow: none;
+  }
+  .tabela-cartao td {
+    border: none !important; padding: 5px 0 !important;
+    display: flex; align-items: center; gap: 10px; text-align: left !important;
+  }
+  .tabela-cartao td::before {
+    content: attr(data-rotulo);
+    font-size: .68rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: .05em; color: var(--mudo);
+    min-width: 92px; flex: none;
+  }
+  .tabela-cartao td[data-rotulo=""]::before { display: none; }
+  /* O destaque do cartão: identificação e ação */
+  .tabela-cartao td.cartao-titulo {
+    font-size: 1.02rem; font-weight: 800; padding-bottom: 8px !important;
+    border-bottom: 1px solid var(--borda) !important; margin-bottom: 6px;
+  }
+  .tabela-cartao td.cartao-acao {
+    justify-content: stretch; padding-top: 11px !important;
+  }
+  .tabela-cartao td.cartao-acao .btn { width: 100%; padding: 11px; font-size: .95rem; }
+  .tabela-cartao .text-truncate { white-space: normal !important; }
+
+  /* Alvos maiores para o dedo */
+  .btn { min-height: 40px; }
+  .btn-sm { min-height: 34px; }
+  .form-control, .form-select { min-height: 42px; font-size: 16px; }
+  .kpi { padding: 13px 14px; }
+  .kpi .valor { font-size: 1.45rem; }
+  .card-header { font-size: .88rem; }
+  .cronometro { font-size: 2.2rem; }
+  .acoes-os .btn { padding: 14px 8px; font-size: 1rem; }
+  .modal-dialog { margin: .5rem; }
+}
+
+@media (max-width: 480px) {
+  .tabela-cartao td { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .tabela-cartao td::before { min-width: 0; }
+  .cronometro { font-size: 1.9rem; }
+}

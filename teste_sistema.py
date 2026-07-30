@@ -34,7 +34,7 @@ print("✅ login ok")
 
 # ── Rotas GET ──
 rotas_get = [
-    "/", "/os/", "/os/nova", "/os/intervencao", "/os/tablet", "/os/triagem",
+    "/", "/os/", "/os/nova", "/os/intervencao", "/os/triagem",
     "/preventivas/", "/preventivas/planos", "/preventivas/planos/novo",
     "/preventivas/oms", "/preventivas/plano-materiais", "/preventivas/reprogramacoes",
     "/rondas/", "/rondas/cadastro",

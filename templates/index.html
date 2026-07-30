@@ -108,7 +108,7 @@
       <div class="card-body p-0">
         {% if fila %}
         <div class="table-responsive">
-          <table class="table table-hover mb-0 align-middle">
+          <table class="table table-hover mb-0 align-middle tabela-cartao">
             <thead><tr>
               <th style="width:38px"></th><th>OS</th><th>Equipamento</th>
               <th>Problema</th><th>Responsável</th><th>Status</th><th>Aberta há</th>
@@ -118,24 +118,24 @@
               {% for o in fila %}
               <tr data-crit="{{ o.criticidade }}" style="--cor-crit:{{ CRIT.get(o.criticidade, {}).get('cor', '#CFD8E5') }}" style="cursor:pointer"
                   onclick="location.href='{{ url_for('os.detalhe', os_id=o.id) }}'">
-                <td><span class="crit" style="background:{{ CRIT.get(o.criticidade, {}).get('cor', '#5B93C4') }}">{{ o.criticidade }}</span></td>
-                <td class="fw-bold">#{{ o.numero }}</td>
-                <td>
+                <td data-rotulo=""><span class="crit" style="background:{{ CRIT.get(o.criticidade, {}).get('cor', '#5B93C4') }}">{{ o.criticidade }}</span></td>
+                <td class="fw-bold cartao-titulo" data-rotulo="">OS #{{ o.numero }}</td>
+                <td data-rotulo="Equipamento">
                   <div class="fw-semibold" style="font-size:.83rem">{{ o.eq_codigo or '—' }}</div>
                   <small class="text-mudo">{{ (o.eq_nome or o.equipamento_outro or '')[:32] }}</small>
                 </td>
-                <td style="max-width:260px"><span class="text-truncate d-block">{{ o.descricao_problema }}</span></td>
-                <td><small>{{ o.responsavel or '—' }}</small></td>
-                <td>
+                <td data-rotulo="Problema" style="max-width:260px"><span class="text-truncate d-block">{{ o.descricao_problema }}</span></td>
+                <td data-rotulo="Responsável"><small>{{ o.responsavel or '—' }}</small></td>
+                <td data-rotulo="Situação">
                   <span class="st st-{{ o.status }}">{{ o.status.replace('_',' ') }}</span>
                   {% if o.maquina_parada %}<i class="bi bi-exclamation-octagon-fill text-danger ms-1" title="Máquina parada"></i>{% endif %}
                 </td>
-                <td><small class="text-mudo">{{ o.data_abertura|dt('%d/%m %H:%M') }}</small></td>
-                <td class="text-center">
+                <td data-rotulo="Aberta em"><small class="text-mudo">{{ o.data_abertura|dt('%d/%m %H:%M') }}</small></td>
+                <td class="text-center cartao-acao" data-rotulo="">
                   <a href="{{ url_for('os.detalhe', os_id=o.id) }}"
                      class="btn btn-sm btn-decio px-2 py-1" title="Abrir a OS"
                      onclick="event.stopPropagation()">
-                    <i class="bi bi-box-arrow-up-right"></i></a>
+                    <i class="bi bi-box-arrow-up-right me-1"></i><span class="d-md-none">Abrir a OS</span></a>
                 </td>
               </tr>
               {% endfor %}

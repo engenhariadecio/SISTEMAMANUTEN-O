@@ -135,8 +135,20 @@ for classe in [".btn-primary", ".btn-info", ".btn-success", ".btn-warning",
     assert classe in css, f"{classe} sem definição na paleta"
 print("   ✅ todas as variantes do Bootstrap redefinidas nas cores da logo")
 assert "var(--verde)" in css and "var(--azul)" in css
-assert ".btn-danger" in css
-print("   ✅ vermelho preservado só para ações destrutivas")
+
+# Nenhuma regra de botão pode usar cor fora da paleta da logo
+import re
+fora = []
+for m in re.finditer(r'([^{}]*\.btn[^{}]*)\{([^}]*)\}', css):
+    if "var(--neg)" in m.group(2) or re.search(r'#[Dd]6473[Ff]|#[Bb]93[Aa]33', m.group(2)):
+        fora.append(m.group(1).strip()[:50])
+assert not fora, f"botões fora da paleta: {fora}"
+print("   ✅ nenhum botão usa cor fora do verde e do azul da logo")
+
+# O modo tablet não existe mais — a tela única se adapta
+assert "tablet-card" not in css, "sobrou estilo do modo tablet"
+assert "@media (max-width: 820px)" in css and ".tabela-cartao" in css
+print("   ✅ tabelas viram cartões no celular, sem tela separada")
 
 print("\n" + "=" * 58)
 print("✅ CRONÔMETRO E BOTÕES VALIDADOS")

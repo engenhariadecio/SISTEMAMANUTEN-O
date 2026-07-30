@@ -45,14 +45,12 @@
   <div class="nav-section">Corretivas</div>
   {% if u.perfil == 'manutentor' %}
   {{ item('os.lista', 'list-task', 'Minhas ordens de serviço') }}
-  {{ item('os.tablet', 'tablet-landscape', 'Modo tablet', 'os_executar') }}
   {{ item('os.intervencao', 'lightning-charge-fill', 'OS de emergência', 'os_executar') }}
   {% else %}
   {{ item('os.nova', 'plus-circle-fill', 'Abrir OS') }}
   {{ item('os.lista', 'list-task', 'Ordens de serviço') }}
   {{ item('os.triagem', 'inboxes-fill', 'Triagem de OS', 'os_triagem') }}
   {% if pode('os_executar') %}
-    {{ item('os.tablet', 'tablet-landscape', 'Modo tablet', 'os_executar') }}
     {{ item('os.intervencao', 'lightning-charge-fill', 'Intervenção rápida', 'os_executar') }}
   {% endif %}
   {% endif %}

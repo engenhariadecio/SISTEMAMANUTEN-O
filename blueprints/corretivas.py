@@ -899,26 +899,11 @@ def reabrir(os_id):
     return redirect(url_for("os.detalhe", os_id=os_id))
 
 
-# ══════════════════════════════════════════════════════════════════
-#  MODO TABLET — fila simplificada de chão de fábrica
-# ══════════════════════════════════════════════════════════════════
 @bp.route("/tablet")
 @exige("os_executar")
 def tablet():
-    filtro, params = "", [list(ABERTAS)]
-    if session.get("perfil") == "manutentor":
-        filtro = "AND o.responsavel_id=%s"
-        params.append(session["uid"])
-    fila = db.query(f"""
-        SELECT o.*, e.codigo AS eq_codigo, e.nome AS eq_nome, r.nome AS responsavel
-        FROM ordens_servico o
-        LEFT JOIN equipamentos e ON e.id=o.equipamento_id
-        LEFT JOIN usuarios r ON r.id=o.responsavel_id
-        WHERE o.status = ANY(%s) AND o.responsavel_id IS NOT NULL {filtro}
-        ORDER BY CASE o.status WHEN 'em_andamento' THEN 0 ELSE 1 END,
-                 {db.ordem_crit('o.criticidade')},
-                 o.maquina_parada DESC, o.data_abertura""", params)
-    return render_template("os/tablet.html", fila=fila, STATUS_LABEL=STATUS_LABEL)
+    """A tela única já se adapta ao tablet — mantido só para links antigos."""
+    return redirect(url_for("os.lista"))
 
 
 # ══════════════════════════════════════════════════════════════════

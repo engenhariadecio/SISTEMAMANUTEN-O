@@ -90,7 +90,6 @@ Uma OS reprovada **volta para o mesmo manutentor**, não para a fila de triagem.
 - Pedido de peça com baixa automática no NLAG ou solicitação ao analista (ver abaixo).
 - **Intervenção automática**: o manutentor abre para si mesmo (máquina + sintoma),
   o cronômetro inicia e o tempo fica registrado no histórico do equipamento.
-- **Modo tablet**: fila em cartões grandes, otimizada para uso na máquina.
 
 ### Módulo — Manutenções Preventivas
 - Cadastro centralizado de check lists por equipamento (substitui os arquivos RQ).
@@ -567,7 +566,7 @@ python teste_email_config.py     # configuração de e-mail pela tela
 python teste_recorte.py          # recorte de acesso por perfil
 python teste_nlag.py             # migração do NLAG e catálogo de peças
 python teste_cronometro.py       # ciclo do manutentor, do início à aprovação
-python teste_relogio.py          # cronômetro acumulado e paleta dos botões
+python teste_relogio.py          # cronômetro, paleta e responsividade
 ```
 
 ---
@@ -582,13 +581,16 @@ Cores extraídas da logo da empresa:
 | Azul institucional | `#10477D` |
 | Gradiente (cabeçalhos, botões principais) | verde → azul |
 
-Todas as variantes de botão do Bootstrap foram redefinidas nas cores da logo.
-O vermelho ficou reservado às ações destrutivas e negativas — excluir, reprovar
-e dar baixa no estoque — para o usuário distinguir o que não tem volta.
+**Todos os botões do site usam apenas o verde e o azul da logo** — nenhuma
+variante do Bootstrap escapa da paleta. As ações sem volta (excluir, reprovar)
+são protegidas por confirmação em tela, não por cor.
+
+O layout é **responsivo automaticamente**, sem tela separada para tablet: no
+celular e no tablet as tabelas viram cartões, os botões ganham altura de toque
+e os campos crescem. A sidebar recolhe em menu.
 | Criticidade | definida em Admin → Criticidade (padrão A–E) |
 
-Fonte **Manrope**. Layout responsivo: sidebar no desktop, menu recolhível no
-celular e modo tablet com botões grandes para o chão de fábrica.
+Fonte **Manrope**.
 
 ---
 

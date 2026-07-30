@@ -143,7 +143,7 @@ print("   ✅ equipamento E com máquina parada abriu OS como D")
 # ══ ROTAS ══════════════════════════════════════════════════════
 print("\n── Rotas ──")
 for rota in ["/admin/criticidades", f"/admin/equipamentos/{eq['id']}/matriz",
-             "/admin/equipamentos", "/os/", "/os/tablet", "/", "/indicadores/parque",
+             "/admin/equipamentos", "/os/", "/", "/indicadores/parque",
              "/preventivas/", "/os/?criticidade=A"]:
     r = c.get(rota)
     assert r.status_code == 200, f"{rota} → {r.status_code}"

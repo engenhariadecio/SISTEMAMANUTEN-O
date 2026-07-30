@@ -74,9 +74,6 @@ print("\n── 2. Antes da triagem ──")
 r = jaime.get("/os/")
 assert f"#{o['numero']}".encode() not in r.data, "não deveria aparecer na lista do manutentor"
 print("   ✅ não aparece na lista do manutentor")
-r = jaime.get("/os/tablet")
-assert f"#{o['numero']}".encode() not in r.data
-print("   ✅ não aparece no modo tablet")
 
 r = jaime.post(f"/os/{o['id']}/acao/iniciar", follow_redirects=True)
 assert db.scalar("SELECT status FROM ordens_servico WHERE id=%s",
@@ -124,8 +121,7 @@ print("   ✅ saiu da fila de triagem")
 # ══ 4. AGORA SIM O MANUTENTOR ═════════════════════════════════
 print("\n── 4. Manutentor designado ──")
 assert f"#{o['numero']}".encode() in jaime.get("/os/").data
-assert f"#{o['numero']}".encode() in jaime.get("/os/tablet").data
-print("   ✅ a OS entrou na lista e no tablet do Jaime")
+print("   ✅ a OS entrou na lista do Jaime")
 
 assert f"#{o['numero']}".encode() not in emerson.get("/os/").data
 print("   ✅ não aparece para o outro manutentor")

@@ -66,9 +66,9 @@ print("   ✅ POST direto no depósito também é barrado")
 
 # ══ O QUE O MANUTENTOR PODE ════════════════════════════════════
 print("\n── Acessos do manutentor ──")
-for rota in ["/", "/os/", "/os/tablet", "/os/nova", "/os/intervencao"]:
+for rota in ["/", "/os/", "/os/nova", "/os/intervencao"]:
     assert liberado(mnt, rota), f"manutentor deveria acessar {rota}"
-print("   ✅ painel, fila, tablet, abertura de OS e intervenção de emergência")
+print("   ✅ painel, fila, abertura de OS e intervenção de emergência")
 for rota in ["/admin/usuarios", "/admin/equipamentos", "/indicadores/", "/os/triagem"]:
     assert bloqueado(mnt, rota), f"manutentor NÃO deveria acessar {rota}"
 print("   ✅ bloqueado em administração, indicadores e triagem")

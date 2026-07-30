@@ -76,7 +76,7 @@
   </div>
   <div class="card-body p-0">
     <div class="table-responsive">
-      <table class="table table-hover mb-0 align-middle">
+      <table class="table table-hover mb-0 align-middle tabela-cartao">
         <thead><tr>
           <th style="width:56px">Foto</th><th>Código</th><th>Descrição</th>
           <th style="width:74px">Unidade</th><th class="text-end" style="width:90px">Saldo</th>
@@ -87,21 +87,21 @@
         <tbody>
           {% for m in itens %}
           <tr class="{{ 'table-danger' if m.saldo <= 0 else 'table-warning' if m.abaixo_min }}">
-            <td><img src="{{ url_for('mat.imagem', codigo=m.codigo) }}"
+            <td data-rotulo=""><img src="{{ url_for('mat.imagem', codigo=m.codigo) }}"
                      style="width:40px;height:40px;object-fit:cover;border-radius:8px"></td>
-            <td><span class="pill fw-bold">{{ m.codigo }}</span>
+            <td class="cartao-titulo" data-rotulo=""><span class="pill fw-bold">{{ m.codigo }}</span>
               {% if m.critico %}<i class="bi bi-star-fill text-warning ms-1"
                                    title="Peça crítica"></i>{% endif %}</td>
-            <td style="font-size:.85rem">{{ m.descricao }}</td>
-            <td><span class="pill">{{ m.unidade }}</span></td>
-            <td class="text-end fw-bold {{ 'text-danger' if m.saldo <= 0
+            <td data-rotulo="Descrição" style="font-size:.85rem">{{ m.descricao }}</td>
+            <td data-rotulo="Unidade"><span class="pill">{{ m.unidade }}</span></td>
+            <td data-rotulo="Saldo" class="text-end fw-bold {{ 'text-danger' if m.saldo <= 0
                                             else 'text-warning' if m.abaixo_min
                                             else 'text-success' }}"
                 style="font-size:1.02rem">{{ m.saldo|num(0) }}</td>
-            <td class="text-end"><small class="text-mudo">{{ m.estoque_min|num(0) }}</small></td>
-            <td><small class="text-mudo">{{ m.localizacao or '—' }}</small></td>
+            <td data-rotulo="Mínimo" class="text-end"><small class="text-mudo">{{ m.estoque_min|num(0) }}</small></td>
+            <td data-rotulo="Local"><small class="text-mudo">{{ m.localizacao or '—' }}</small></td>
             {% if pode('material_mov') %}
-            <td class="text-center text-nowrap no-print">
+            <td class="text-center text-nowrap no-print cartao-acao" data-rotulo="">
               <button class="btn btn-sm btn-verde py-1 px-2" title="Entrada"
                       onclick="lancar('{{ m.codigo }}', '{{ m.descricao|replace("'", "") }}',
                                '{{ m.unidade }}', 'ENTRADA')">

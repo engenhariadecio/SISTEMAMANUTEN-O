@@ -53,11 +53,11 @@ for rota in FECHADO:
     assert bloqueado(jaime, rota), f"manutentor NÃO deveria acessar {rota}"
 print(f"   ✅ bloqueado em {len(FECHADO)} telas de planejamento e gestão")
 
-ABERTO = ["/", "/os/", "/os/tablet", "/os/intervencao", "/preventivas/oms", "/rondas/"]
+ABERTO = ["/", "/os/", "/os/intervencao", "/preventivas/oms", "/rondas/"]
 for rota in ABERTO:
     r = jaime.get(rota, follow_redirects=True)
     assert r.status_code == 200 and BLOQ not in r.data, f"deveria acessar {rota}"
-print("   ✅ acesso a: painel · suas OS · tablet · emergência · suas preventivas · suas rondas")
+print("   ✅ acesso a: painel · suas OS · emergência · suas preventivas · suas rondas")
 
 menu = jaime.get("/").data.decode()
 assert "Minhas ordens de serviço" in menu and "Minhas preventivas" in menu

@@ -40,6 +40,7 @@ MOTIVOS_PAUSA = [
     ("reuniao", "Reunião", "people-fill"),
     ("treinamento", "Treinamento", "mortarboard-fill"),
     ("outra_os", "Atendendo outra OS", "arrow-left-right"),
+    ("aguardando_peca", "Aguardando peça", "box-seam"),
     ("aguardando_terceiro", "Aguardando terceiro", "truck"),
     ("aguardando_producao", "Aguardando a produção liberar", "hourglass-split"),
     ("fim_turno", "Fim de turno", "moon-stars-fill"),

@@ -353,3 +353,108 @@ tr[data-crit] { box-shadow: inset 4px 0 0 var(--cor-crit, #CFD8E5); }
   background: rgba(16,71,125,.1); color: var(--azul);
 }
 .st-atribuida { background: rgba(16,71,125,.13); color: var(--azul); }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   PALETA DOS BOTÕES — tudo nas cores da logo
+   Verde #28A353 · Azul #10477D
+   Exceção deliberada: ações destrutivas e negativas (excluir, reprovar,
+   saída de estoque) continuam em vermelho, senão o usuário não distingue
+   o que não tem volta.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Preenchidos ── */
+.btn-primary, .btn-info {
+  background: var(--azul); border-color: var(--azul); color: #fff;
+}
+.btn-primary:hover, .btn-info:hover, .btn-primary:focus, .btn-info:focus {
+  background: #0B3660; border-color: #0B3660; color: #fff;
+}
+.btn-success {
+  background: var(--verde); border-color: var(--verde); color: #fff;
+}
+.btn-success:hover, .btn-success:focus {
+  background: var(--verde-esc); border-color: var(--verde-esc); color: #fff;
+}
+.btn-warning {
+  background: var(--azul-clr); border-color: var(--azul-clr); color: #fff;
+}
+.btn-warning:hover, .btn-warning:focus {
+  background: var(--azul); border-color: var(--azul); color: #fff;
+}
+.btn-secondary {
+  background: #5A6B7F; border-color: #5A6B7F; color: #fff;
+}
+.btn-secondary:hover { background: #46566A; border-color: #46566A; color: #fff; }
+.btn-dark { background: var(--sidebar-bg); border-color: var(--sidebar-bg); }
+
+/* ── Contornados ── */
+.btn-outline-primary, .btn-outline-info {
+  color: var(--azul); border-color: var(--azul);
+}
+.btn-outline-primary:hover, .btn-outline-info:hover {
+  background: var(--azul); border-color: var(--azul); color: #fff;
+}
+.btn-outline-success {
+  color: var(--verde-esc); border-color: var(--verde);
+}
+.btn-outline-success:hover {
+  background: var(--verde); border-color: var(--verde); color: #fff;
+}
+.btn-outline-warning {
+  color: var(--azul); border-color: var(--azul-clr);
+}
+.btn-outline-warning:hover {
+  background: var(--azul-clr); border-color: var(--azul-clr); color: #fff;
+}
+.btn-outline-secondary {
+  color: #46566A; border-color: #C9D3E0;
+}
+.btn-outline-secondary:hover {
+  background: var(--azul); border-color: var(--azul); color: #fff;
+}
+
+/* ── Contorno com o gradiente da marca ── */
+.btn-outline-decio {
+  color: var(--azul); border: 1.5px solid var(--verde); background: #fff; font-weight: 700;
+}
+.btn-outline-decio:hover, .btn-outline-decio:focus {
+  background: var(--gradiente); border-color: transparent; color: #fff;
+}
+
+/* ── Seleção (radio/checkbox estilizados como botão) ── */
+.btn-check:checked + .btn-outline-secondary,
+.btn-check:checked + .btn-outline-primary,
+.btn-check:checked + .btn-outline-info,
+.btn-check:checked + .btn-outline-warning {
+  background: var(--gradiente); border-color: transparent; color: #fff;
+}
+.btn-check:checked + .btn-outline-success {
+  background: var(--verde); border-color: var(--verde); color: #fff;
+}
+.btn-check:checked + .btn-outline-danger {
+  background: var(--neg); border-color: var(--neg); color: #fff;
+}
+.btn-check:focus + .btn {
+  box-shadow: 0 0 0 .18rem rgba(40,163,83,.22);
+}
+
+/* ── Links e paginação também na marca ── */
+a { color: var(--azul); }
+a:hover { color: var(--verde-esc); }
+.btn-link { color: var(--azul); font-weight: 600; }
+.btn-link:hover { color: var(--verde-esc); }
+.nav-tabs .nav-link.active { color: var(--azul); border-bottom-color: #fff; }
+.form-check-input:checked {
+  background-color: var(--verde); border-color: var(--verde);
+}
+.form-check-input:focus { box-shadow: 0 0 0 .18rem rgba(40,163,83,.2); }
+
+/* ── Destrutivo permanece vermelho, por segurança de uso ── */
+.btn-danger { background: var(--neg); border-color: var(--neg); }
+.btn-danger:hover { background: #B93A33; border-color: #B93A33; }
+.btn-outline-danger { color: var(--neg); border-color: var(--neg); }
+.btn-outline-danger:hover { background: var(--neg); border-color: var(--neg); color: #fff; }
+
+/* Foco visível em qualquer botão, na cor da marca */
+.btn:focus-visible { box-shadow: 0 0 0 .2rem rgba(40,163,83,.3); outline: none; }

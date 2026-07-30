@@ -128,8 +128,17 @@
         <div class="crono-box crono-{{ aberto.tipo if aberto else 'parado' }} text-center mb-3">
           <div class="cronometro" id="crono">00:00:00</div>
           <div class="fw-bold mt-1" style="font-size:.86rem">
-            {{ TIPOS_TEMPO.get(aberto.tipo, '') if aberto else 'Cronômetro parado' }}
+            {% if aberto and aberto.tipo == 'trabalho' %}
+              <i class="bi bi-record-circle-fill me-1"></i>Contando tempo de serviço
+            {% elif aberto %}
+              <i class="bi bi-pause-circle-fill me-1"></i>
+              {{ TIPOS_TEMPO.get(aberto.tipo, 'Pausada') }} — o relógio está parado
+            {% else %}
+              Cronômetro parado
+            {% endif %}
           </div>
+          <div class="text-mudo mt-1" style="font-size:.76rem">
+            tempo total de serviço nesta OS</div>
         </div>
 
         <div class="row g-2 acoes-os">
@@ -142,33 +151,23 @@
             </div>
 
           {% elif o.status == 'em_andamento' %}
-            <div class="col-6 col-md-3">
-              <button type="button" class="btn btn-outline-warning w-100"
+            <div class="col-7">
+              <button type="button" class="btn btn-outline-decio w-100 btn-lg"
                       data-bs-toggle="modal" data-bs-target="#mPausa">
-                <i class="bi bi-pause-fill"></i>Pausar</button>
+                <i class="bi bi-pause-fill me-1"></i> Pausar</button>
             </div>
-            <div class="col-6 col-md-3">
-              <form method="post" action="{{ url_for('os.acao', os_id=o.id, acao='almoco') }}">
-                <button class="btn btn-outline-info w-100">
-                  <i class="bi bi-egg-fried"></i>Almoço</button>
-              </form>
-            </div>
-            <div class="col-6 col-md-3">
-              <form method="post" action="{{ url_for('os.acao', os_id=o.id, acao='aguardando_peca') }}">
-                <button class="btn btn-outline-primary w-100">
-                  <i class="bi bi-box-seam"></i>Aguard. peça</button>
-              </form>
-            </div>
-            <div class="col-6 col-md-3">
-              <button class="btn btn-verde w-100" data-bs-toggle="modal" data-bs-target="#modalConcluir">
-                <i class="bi bi-check-lg"></i>Concluir</button>
+            <div class="col-5">
+              <button class="btn btn-verde w-100 btn-lg" data-bs-toggle="modal"
+                      data-bs-target="#modalConcluir">
+                <i class="bi bi-check-lg me-1"></i> Concluir</button>
             </div>
 
           {% elif o.status in ('pausada','aguardando_peca') %}
             <div class="col-8">
               <form method="post" action="{{ url_for('os.acao', os_id=o.id, acao='retomar') }}">
                 <button class="btn btn-verde w-100 btn-lg">
-                  <i class="bi bi-play-fill me-1"></i> Retomar o serviço</button>
+                  <i class="bi bi-play-fill me-1"></i>
+                  Retomar de {{ o.tempo_trabalho_seg|dur }}</button>
               </form>
             </div>
             <div class="col-4">
@@ -563,24 +562,42 @@
 
 {% block js %}
 <script>
-// ── Cronômetro em tempo real ──
-{% if aberto %}
-let base = {{ ((aberto.inicio and 0) or 0) }};
-let inicio = Date.now();
-let decorrido = 0;
-fetch("{{ url_for('api.cronometro', os_id=o.id) }}")
-  .then(r => r.json())
-  .then(d => { if (d.rodando) { decorrido = d.parcial; tick(); setInterval(tick, 1000); } });
-function tick() {
-  const s = decorrido + Math.floor((Date.now() - inicio) / 1000);
-  const h = String(Math.floor(s/3600)).padStart(2,'0');
-  const m = String(Math.floor(s%3600/60)).padStart(2,'0');
-  const seg = String(s%60).padStart(2,'0');
-  document.getElementById('crono').textContent = `${h}:${m}:${seg}`;
+// ── Cronômetro: mostra o tempo ACUMULADO de trabalho, não o intervalo ──
+const relogio = document.getElementById('crono');
+if (relogio) {
+  let acumulado = 0;      // segundos de trabalho já somados
+  let rodando = false;    // só conta quando o tipo é "trabalho"
+  let marco = Date.now();
+
+  function formatar(s) {
+    const h = String(Math.floor(s / 3600)).padStart(2, '0');
+    const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+    const g = String(Math.floor(s % 60)).padStart(2, '0');
+    return `${h}:${m}:${g}`;
+  }
+
+  function tick() {
+    const extra = rodando ? Math.floor((Date.now() - marco) / 1000) : 0;
+    relogio.textContent = formatar(acumulado + extra);
+  }
+
+  function sincronizar() {
+    fetch("{{ url_for('api.cronometro', os_id=o.id) }}")
+      .then(r => r.json())
+      .then(d => {
+        acumulado = d.acumulado || 0;
+        rodando = !!d.trabalhando;
+        marco = Date.now();
+        tick();
+      })
+      .catch(() => {});
+  }
+
+  sincronizar();
+  setInterval(tick, 1000);
+  // Reconfere com o servidor de tempos em tempos, para não acumular desvio
+  setInterval(sincronizar, 60000);
 }
-{% else %}
-document.getElementById('crono') && (document.getElementById('crono').textContent = '00:00:00');
-{% endif %}
 
 // ── Catálogo de peças ──
 const busca = document.getElementById('buscaPeca');

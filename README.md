@@ -72,11 +72,14 @@ Uma OS reprovada **volta para o mesmo manutentor**, não para a fila de triagem.
   manual justificado, com registro em auditoria.
 - Máquina parada sobe **um nível** de prioridade na abertura da OS.
 - Cronômetro no chão de fábrica: **Iniciar · Pausar · Almoço · Aguardando peça · Concluir**.
-- **Pausa com motivo**: café, almoço, ginástica laboral, pausa pessoal, reunião,
-  treinamento, atendendo outra OS, aguardando terceiro, aguardando a produção
-  liberar, fim de turno ou outro motivo com observação livre. Cada intervalo é
-  gravado com o seu tipo, então o tempo de reparo não fica inflado por paradas
-  que não são serviço — o MTTR sai correto.
+- Enquanto executa, o manutentor tem **dois botões apenas: Pausar e Concluir**.
+  Ao pausar, escolhe o motivo — café, almoço, ginástica laboral, pausa pessoal,
+  reunião, treinamento, atendendo outra OS, aguardando peça, aguardando terceiro,
+  aguardando a produção liberar, fim de turno ou outro com observação livre.
+- O relógio mostra o **tempo acumulado de serviço**, não o intervalo atual: ao
+  retomar ele continua de onde parou, e durante a pausa fica congelado.
+  Cada intervalo é gravado com o seu tipo, então o MTTR não é inflado por
+  paradas que não são serviço.
 - Conclusão com **relatório, fotos e vídeos**, que o solicitante vê na hora de aprovar.
 - Apontamentos automáticos: quem assumiu, material solicitado, pausas, conclusão.
   O solicitante é notificado a cada evento.
@@ -564,6 +567,7 @@ python teste_email_config.py     # configuração de e-mail pela tela
 python teste_recorte.py          # recorte de acesso por perfil
 python teste_nlag.py             # migração do NLAG e catálogo de peças
 python teste_cronometro.py       # ciclo do manutentor, do início à aprovação
+python teste_relogio.py          # cronômetro acumulado e paleta dos botões
 ```
 
 ---
@@ -577,6 +581,10 @@ Cores extraídas da logo da empresa:
 | Verde institucional | `#28A353` |
 | Azul institucional | `#10477D` |
 | Gradiente (cabeçalhos, botões principais) | verde → azul |
+
+Todas as variantes de botão do Bootstrap foram redefinidas nas cores da logo.
+O vermelho ficou reservado às ações destrutivas e negativas — excluir, reprovar
+e dar baixa no estoque — para o usuário distinguir o que não tem volta.
 | Criticidade | definida em Admin → Criticidade (padrão A–E) |
 
 Fonte **Manrope**. Layout responsivo: sidebar no desktop, menu recolhível no

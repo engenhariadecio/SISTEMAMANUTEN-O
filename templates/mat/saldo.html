@@ -62,7 +62,7 @@
         <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
         <input name="q" value="{{ busca }}" class="form-control" placeholder="Filtrar…">
       </div>
-      <a href="{{ url_for('mat.exportar') }}" class="btn btn-sm btn-outline-success"
+      <a href="{{ url_for('mat.exportar') }}" class="btn btn-sm btn-outline-decio"
          title="Exportar saldo em CSV"><i class="bi bi-filetype-csv"></i></a>
       <button type="button" class="btn btn-sm btn-outline-secondary no-print"
               onclick="window.print()" title="Imprimir"><i class="bi bi-printer"></i></button>
@@ -102,7 +102,7 @@
             <td><small class="text-mudo">{{ m.localizacao or '—' }}</small></td>
             {% if pode('material_mov') %}
             <td class="text-center text-nowrap no-print">
-              <button class="btn btn-sm btn-success py-1 px-2" title="Entrada"
+              <button class="btn btn-sm btn-verde py-1 px-2" title="Entrada"
                       onclick="lancar('{{ m.codigo }}', '{{ m.descricao|replace("'", "") }}',
                                '{{ m.unidade }}', 'ENTRADA')">
                 <i class="bi bi-plus-lg"></i></button>
@@ -111,10 +111,10 @@
                                '{{ m.unidade }}', 'SAIDA')">
                 <i class="bi bi-dash-lg"></i></button>
               <a href="{{ url_for('mat.historico', codigo=m.codigo) }}"
-                 class="btn btn-sm btn-info py-1 px-2 text-white" title="Histórico">
+                 class="btn btn-sm btn-azul py-1 px-2" title="Histórico">
                 <i class="bi bi-clock-history"></i></a>
               <a href="{{ url_for('mat.etiqueta_imprimir', codigo=m.codigo) }}" target="_blank"
-                 class="btn btn-sm btn-primary py-1 px-2" title="Etiqueta">
+                 class="btn btn-sm btn-azul py-1 px-2" title="Etiqueta">
                 <i class="bi bi-tag-fill"></i></a>
               {% if pode('material_cad') %}
               <a href="{{ url_for('mat.cadastro', editar=m.codigo) }}"

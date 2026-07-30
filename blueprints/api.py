@@ -81,14 +81,24 @@ def causas():
 
 @bp.route("/os/<int:os_id>/cronometro")
 def cronometro(os_id):
+    """
+    Estado do cronômetro. O 'acumulado' é o tempo de trabalho já fechado mais o
+    intervalo em curso, para o relógio da tela nunca voltar a zero ao retomar.
+    """
     aberto = db.um("""SELECT tipo, EXTRACT(EPOCH FROM (NOW()-inicio))::INT AS seg
                       FROM os_tempos WHERE os_id=%s AND fim IS NULL
                       ORDER BY inicio DESC LIMIT 1""", (os_id,))
-    total = db.scalar("SELECT tempo_trabalho_seg AS t FROM ordens_servico WHERE id=%s",
-                      (os_id,), default=0)
+    total = int(db.scalar("SELECT tempo_trabalho_seg AS t FROM ordens_servico WHERE id=%s",
+                          (os_id,), default=0) or 0)
     if not aberto:
-        return jsonify(rodando=False, total=total)
-    return jsonify(rodando=True, tipo=aberto["tipo"], parcial=aberto["seg"], total=total)
+        return jsonify(rodando=False, tipo=None, parcial=0,
+                       total=total, acumulado=total)
+
+    trabalhando = aberto["tipo"] == "trabalho"
+    parcial = int(aberto["seg"] or 0)
+    return jsonify(rodando=True, tipo=aberto["tipo"], parcial=parcial, total=total,
+                   acumulado=total + (parcial if trabalhando else 0),
+                   trabalhando=trabalhando)
 
 
 @bp.route("/notificacoes/nao-lidas")

@@ -145,30 +145,36 @@ db.executar("""INSERT INTO movimentacoes (codigo, tipo, quantidade, usuario)
             (2 - db.saldo_material("7400155"),))
 
 caixa.clear()
+antes = db.saldo_material("7400155")
 jaime.post(f"/os/{o['id']}/material", data={"codigo": "7400155", "quantidade": "1"},
            follow_redirects=True)
-assert db.saldo_material("7400155") == 1.0
-assert not caixa, "com saldo, não abre solicitação nem manda e-mail"
-print("   ✅ tinha saldo → baixa direta, sem formulário")
+assert db.saldo_material("7400155") == antes, "o pedido não pode baixar sozinho"
+sm_a = db.um("SELECT * FROM solicitacoes_material ORDER BY id DESC LIMIT 1")
+assert caixa, "o analista precisa ser avisado"
+print(f"   ✅ mesmo com saldo, abriu SM #{sm_a['numero']} para o analista")
+ana.post(f"/solicitacoes/{sm_a['id']}/liberar", data={"quantidade": "1"},
+         follow_redirects=True)
+assert db.saldo_material("7400155") == antes - 1
+print("   ✅ o analista liberou e a baixa saiu")
+jaime.post(f"/os/{o['id']}/acao/retomar", follow_redirects=True)
 
 caixa.clear()
 jaime.post(f"/os/{o['id']}/material",
-           data={"codigo": "7400155", "quantidade": "4", "pausar": "1"},
-           follow_redirects=True)
+           data={"codigo": "7400155", "quantidade": "4"}, follow_redirects=True)
 sm = db.um("SELECT * FROM solicitacoes_material ORDER BY id DESC LIMIT 1")
-print(f"   pediu 4, havia 1 → SM #{sm['numero']} de {float(sm['quantidade']):g}")
-assert float(sm["quantidade"]) == 3.0
+print(f"   pediu 4, saldo é {db.saldo_material('7400155'):g} → "
+      f"SM #{sm['numero']} de {float(sm['quantidade']):g}")
+assert float(sm["quantidade"]) == 4.0
 assert db.scalar("SELECT status FROM ordens_servico WHERE id=%s",
                  (o["id"],), default="") == "aguardando_peca"
 assert "ma1001029" in para(caixa[-1])
-print("   ✅ faltou → formulário para a analista, OS pausada")
+print("   ✅ pedido integral para a analista, OS pausada")
 
 caixa.clear()
-ana.post(f"/solicitacoes/{sm['id']}",
-         data={"situacao": "Recebido", "comentario": "Disponível no almoxarifado"},
-         follow_redirects=True)
+ana.post(f"/solicitacoes/{sm['id']}/liberar",
+         data={"quantidade": "4", "entrada": "6"}, follow_redirects=True)
 assert "ja1001070" in para(caixa[-1])
-print("   ✅ chegou o material → Jaime avisado")
+print("   ✅ analista liberou → Jaime avisado")
 jaime.post(f"/os/{o['id']}/acao/retomar", follow_redirects=True)
 
 # ══ 6. CONCLUSÃO E APROVAÇÃO ══════════════════════════════════

@@ -314,13 +314,13 @@
           </div>
           <div class="col-md-2">
             <button class="btn btn-verde w-100">
-              <i class="bi bi-box-arrow-in-down me-1"></i>Pedir</button>
+              <i class="bi bi-send-fill me-1"></i>Pedir</button>
           </div>
           <div class="col-12">
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" name="pausar" id="pausar" value="1" checked>
-              <label class="form-check-label small" for="pausar">
-                Se não houver saldo, pausar a OS aguardando a peça</label>
+            <div class="alert alert-secondary py-2 mb-0" style="font-size:.82rem">
+              <i class="bi bi-pause-circle-fill me-1"></i>
+              O cronômetro pausa automaticamente como <strong>aguardando peça</strong>
+              e volta quando o analista liberar.
             </div>
           </div>
           <div class="col-12"><div id="matInfo"></div></div>
@@ -328,9 +328,9 @@
 
         <small class="text-mudo d-block mt-2">
           <i class="bi bi-info-circle me-1"></i>
-          Todo pedido de peça sai daqui. Havendo saldo no NLAG a baixa é feita na
-          hora; não havendo, o sistema abre a solicitação para o analista de
-          materiais e avisa você quando ela for liberada.
+          Todo pedido de peça sai daqui e passa pelo analista de materiais —
+          inclusive quando há saldo no depósito. Você é avisado por e-mail assim
+          que ele liberar, e a OS destrava quando o último item for entregue.
         </small>
       </div>
       {% endif %}
@@ -691,19 +691,19 @@ function avaliar() {
   if (escolhida.tipo !== 'NLAG') {
     info.innerHTML = `<div class="alert alert-info py-2 mb-0" style="font-size:.83rem">
       <i class="bi bi-info-circle-fill me-1"></i>Peça do depósito ${escolhida.tipo} —
-      vai gerar solicitação para o analista de materiais.</div>`;
+      o analista vai avaliar e liberar.</div>`;
   } else if (saldo >= q) {
     info.innerHTML = `<div class="alert alert-success py-2 mb-0" style="font-size:.83rem">
-      <i class="bi bi-check-circle-fill me-1"></i>Disponível no NLAG
-      (${saldo} ${escolhida.un}). A baixa será feita na hora.</div>`;
+      <i class="bi bi-check-circle-fill me-1"></i>Há ${saldo} ${escolhida.un} no depósito.
+      O pedido vai para o analista liberar — costuma ser rápido.</div>`;
   } else if (saldo > 0) {
     info.innerHTML = `<div class="alert alert-warning py-2 mb-0" style="font-size:.83rem">
-      <i class="bi bi-exclamation-triangle-fill me-1"></i>Só há ${saldo} ${escolhida.un}.
-      Serão baixados ${saldo} e solicitados ${(q - saldo).toFixed(0)} ao analista.</div>`;
+      <i class="bi bi-exclamation-triangle-fill me-1"></i>Só há ${saldo} ${escolhida.un}
+      no depósito. O analista libera o que tem e providencia o restante.</div>`;
   } else {
-    info.innerHTML = `<div class="alert alert-danger py-2 mb-0" style="font-size:.83rem">
-      <i class="bi bi-x-circle-fill me-1"></i>Sem saldo no NLAG —
-      vai gerar solicitação para o analista de materiais.</div>`;
+    info.innerHTML = `<div class="alert alert-warning py-2 mb-0" style="font-size:.83rem">
+      <i class="bi bi-cart-plus-fill me-1"></i>Sem saldo no depósito —
+      o analista vai providenciar a compra.</div>`;
   }
 }
 

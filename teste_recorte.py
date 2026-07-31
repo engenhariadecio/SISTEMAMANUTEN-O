@@ -188,8 +188,13 @@ lid.post(f"/os/{o['id']}/assumir", data={"responsavel_id": id_jaime}, follow_red
 jaime.post(f"/os/{o['id']}/acao/iniciar", follow_redirects=True)
 jaime.post(f"/os/{o['id']}/material", data={"codigo": "TST999", "quantidade": "3"},
            follow_redirects=True)
+assert db.saldo_material("TST999") == 8.0, "o pedido não baixa sozinho"
+sm_r = db.um("SELECT * FROM solicitacoes_material ORDER BY id DESC LIMIT 1")
+print(f"   pediu 3 sem sair da OS → SM #{sm_r['numero']} para a analista")
+ana.post(f"/solicitacoes/{sm_r['id']}/liberar", data={"quantidade": "3"},
+         follow_redirects=True)
 assert db.saldo_material("TST999") == 5.0
-print(f"   ✅ saldo caiu de 8 para {db.saldo_material('TST999'):g} sem sair da OS")
+print(f"   ✅ analista liberou · saldo 8 → {db.saldo_material('TST999'):g}")
 
 # ══ 6. CONCLUSÃO COM EVIDÊNCIAS ═══════════════════════════════
 print("\n── Conclusão com fotos e relatório ──")

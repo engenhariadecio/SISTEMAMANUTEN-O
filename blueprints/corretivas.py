@@ -637,48 +637,28 @@ def add_material(os_id):
     if mat and not descricao:
         descricao = mat["descricao"]
 
-    # ── Quanto dá para atender agora pelo NLAG ──
+    # ── Saldo apenas informativo: quem entrega a peça é o analista ──
     disponivel = 0.0
-    if mat and mat["tipo"] == "NLAG":
-        disponivel = max(db.saldo_material(mat["codigo"]), 0.0)
-    atendido = min(qtd, disponivel)
-    faltante = round(qtd - atendido, 3)
+    if mat:
+        disponivel = (max(db.saldo_material(mat["codigo"]), 0.0)
+                      if mat["tipo"] == "NLAG" else float(mat["saldo_sap"] or 0))
 
-    # ── 1. Baixa do que existe ──
-    if atendido > 0:
-        db.executar("""INSERT INTO movimentacoes
-                       (codigo, tipo, quantidade, usuario, observacao, os_id)
-                       VALUES (%s,'SAIDA',%s,%s,%s,%s)""",
-                    (mat["codigo"], atendido, session["nome"],
-                     f"Consumo na OS #{o['numero']}", os_id))
-        db.executar("""INSERT INTO os_materiais
-                       (os_id, material_id, codigo, descricao, quantidade, origem,
-                        valor_unit, usuario_id, baixado)
-                       VALUES (%s,%s,%s,%s,%s,'NLAG',%s,%s,TRUE)""",
-                    (os_id, mat["id"], mat["codigo"], descricao, atendido,
-                     mat["valor_unit"] or 0, session["uid"]))
-        novo_saldo = db.saldo_material(mat["codigo"])
-        _apontar(os_id, "material",
-                 f"Retirado do depósito NLAG: {atendido:g} {mat['unidade']} de "
-                 f"{descricao} ({mat['codigo']}).")
-        flash(f"Baixa de {atendido:g} {mat['unidade']} registrada. "
-              f"Saldo restante: {novo_saldo:g}.", "success")
-        _avisar_estoque_minimo(mat, novo_saldo)
-
-    # ── 2. Solicitação do que faltou ──
-    if faltante > 0:
+    # ── Todo pedido vira solicitação, mesmo havendo saldo ──
+    if True:
         if not mat:
             tipo_sm = "Cadastro"
             obs = "Peça sem cadastro no sistema. Solicitada pelo manutentor durante a OS."
         elif mat["tipo"] == "NLAG":
             tipo_sm = "Estoque NLAG"
-            obs = (f"Saldo NLAG insuficiente no momento do pedido "
+            obs = (f"Saldo no NLAG no momento do pedido: {disponivel:g} "
+                   f"{mat['unidade']}." if disponivel >= qtd else
+                   f"Saldo NLAG insuficiente no momento do pedido "
                    f"(disponível {disponivel:g}, necessário {qtd:g}).")
         else:
-            saldo_sap = float(mat["saldo_sap"] or 0)
             tipo_sm = "HIBE/ERSA"
             obs = (f"Material {mat['tipo']} — saldo do SAP na última importação: "
-                   f"{saldo_sap:g}.")
+                   f"{disponivel:g}.")
+        faltante = qtd
 
         numero = db.proximo_numero("solicitacoes_material")
         eq = o["equipamento_id"] and db.scalar(
@@ -697,8 +677,10 @@ def add_material(os_id):
                        VALUES (%s,%s,'Solicitado','Solicitada pelo manutentor dentro da OS.')""",
                     (sid, session["uid"]))
         _apontar(os_id, "material",
-                 f"Material requisitado ao analista: {faltante:g} de "
-                 f"{descricao or codigo} — SM #{numero}.")
+                 f"Material requisitado ao analista: {qtd:g} de "
+                 f"{descricao or codigo} — SM #{numero}."
+                 + (f" Saldo no depósito: {disponivel:g}." if mat else
+                    " Peça sem cadastro."))
 
         link_sm = url_for("sol.detalhe", sid=sid)
         db.notificar_perfis(("analista",),
@@ -721,15 +703,20 @@ def add_material(os_id):
                      f"{descricao or codigo} foi solicitado ao almoxarifado.",
                      url_for("os.detalhe", os_id=os_id))
 
-        if atendido > 0:
-            flash(f"Faltaram {faltante:g} — solicitação SM #{numero} aberta "
-                  "para o analista de materiais.", "warning")
+        if mat and disponivel >= qtd:
+            flash(f"Pedido SM #{numero} enviado ao analista. Há saldo no depósito "
+                  f"({disponivel:g} {mat['unidade']}) — a liberação deve ser rápida.",
+                  "success")
+        elif mat:
+            flash(f"Pedido SM #{numero} enviado ao analista. Saldo atual: "
+                  f"{disponivel:g} {mat['unidade']} — pode ser preciso comprar.",
+                  "warning")
         else:
-            flash(f"Sem saldo no depósito NLAG. Solicitação SM #{numero} enviada "
-                  "ao analista de materiais.", "warning")
+            flash(f"Pedido SM #{numero} enviado ao analista. A peça ainda não tem "
+                  "cadastro e será cadastrada por ele.", "warning")
 
-        # Pausa a OS aguardando a peça
-        if pausar and o["status"] == "em_andamento":
+        # Sem a peça liberada a OS não anda — pausa o cronômetro
+        if o["status"] == "em_andamento":
             db.executar("UPDATE ordens_servico SET status='aguardando_peca' WHERE id=%s",
                         (os_id,))
             _iniciar_tempo(os_id, "aguardando_peca")

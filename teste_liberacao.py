@@ -54,6 +54,7 @@ lid.post(f"/os/{o['id']}/assumir", data={"responsavel_id": uid_mnt}, follow_redi
 
 # ══ 1. MANUTENTOR REQUISITA ═══════════════════════════════════
 print("── 1. Manutentor requisita ──")
+print("   (nenhum pedido dá baixa sozinho — tudo passa pelo analista)")
 mnt.post(f"/os/{o['id']}/material",
          data={"codigo": "LIB001", "descricao": "ROLAMENTO 6205 ZZ", "quantidade": "2"},
          follow_redirects=True)

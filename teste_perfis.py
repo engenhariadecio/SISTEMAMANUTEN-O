@@ -106,29 +106,37 @@ r = mnt.post(f"/os/{o['id']}/material",
 assert r.status_code == 200
 saldo = db.saldo_material("7609066")
 print(f"   pediu 3 → saldo {saldo:g}")
-assert saldo == 7.0, f"deveria dar baixa: {saldo}"
-assert db.scalar("SELECT COUNT(*) AS n FROM solicitacoes_material") == sm_antes, \
-    "não deveria abrir solicitação"
-mat_os = db.um("SELECT * FROM os_materiais WHERE os_id=%s ORDER BY id DESC LIMIT 1", (o["id"],))
-assert mat_os["baixado"] is True and float(mat_os["quantidade"]) == 3.0
-print("   ✅ baixa automática, sem solicitação, consumo registrado na OS")
+assert saldo == 10.0, f"não deveria baixar antes da liberação: {saldo}"
+assert db.scalar("SELECT COUNT(*) AS n FROM solicitacoes_material") == sm_antes + 1, \
+    "todo pedido abre solicitação para o analista"
+print("   ✅ nenhuma baixa no pedido — quem entrega é o analista")
 
 st = db.scalar("SELECT status FROM ordens_servico WHERE id=%s", (o["id"],), default="")
-assert st == "em_andamento", f"OS não deveria pausar: {st}"
-print("   ✅ OS continua em andamento")
+assert st == "aguardando_peca", f"a OS deveria pausar aguardando a peça: {st}"
+print("   ✅ OS pausada aguardando a liberação")
 
-# ══ PEDIDO DE PEÇA — SALDO PARCIAL ═════════════════════════════
+# A analista libera e só então a baixa acontece
+sm_p = db.um("SELECT * FROM solicitacoes_material ORDER BY id DESC LIMIT 1")
+ana.post(f"/solicitacoes/{sm_p['id']}/liberar", data={"quantidade": "3"},
+         follow_redirects=True)
+assert db.saldo_material("7609066") == 7.0
+mat_os = db.um("SELECT * FROM os_materiais WHERE os_id=%s ORDER BY id DESC LIMIT 1",
+               (o["id"],))
+assert mat_os and mat_os["baixado"] is True and float(mat_os["quantidade"]) == 3.0
+print("   ✅ liberou → saldo 10 → 7 e consumo registrado na OS")
+mnt.post(f"/os/{o['id']}/acao/retomar", follow_redirects=True)
+
+# ══ PEDIDO MAIOR QUE O SALDO ═══════════════════════════════════
 print("\n── Pedido maior que o saldo ──")
 r = mnt.post(f"/os/{o['id']}/material",
-             data={"codigo": "7609066", "quantidade": "10", "pausar": "1"},
-             follow_redirects=True)
+             data={"codigo": "7609066", "quantidade": "10"}, follow_redirects=True)
 saldo = db.saldo_material("7609066")
 sm = db.um("SELECT * FROM solicitacoes_material ORDER BY id DESC LIMIT 1")
-print(f"   pediu 10, havia 7 → saldo {saldo:g} · SM #{sm['numero']} de {sm['quantidade']:g}")
-assert saldo == 0.0, f"deveria zerar: {saldo}"
-assert float(sm["quantidade"]) == 3.0, f"deveria solicitar 3: {sm['quantidade']}"
+print(f"   pediu 10, saldo é {saldo:g} → SM #{sm['numero']} de {float(sm['quantidade']):g}")
+assert saldo == 7.0, f"o pedido não mexe no saldo: {saldo}"
+assert float(sm["quantidade"]) == 10.0, f"solicita o total pedido: {sm['quantidade']}"
 assert sm["os_id"] == o["id"] and sm["tipo"] == "Estoque NLAG"
-print("   ✅ baixou 7 e solicitou os 3 que faltaram")
+print("   ✅ solicita a quantidade inteira, sem tocar no saldo")
 
 st = db.scalar("SELECT status FROM ordens_servico WHERE id=%s", (o["id"],), default="")
 assert st == "aguardando_peca", f"OS deveria pausar: {st}"
@@ -139,10 +147,13 @@ notif = db.um("""SELECT n.* FROM notificacoes n JOIN usuarios u ON u.id=n.usuari
 assert notif and "SM" in notif["titulo"], "analista deveria ser notificado"
 print(f"   ✅ analista notificado: {notif['titulo']}")
 
+# O alerta de mínimo dispara quando a liberação derruba o saldo
+ana.post(f"/solicitacoes/{sm['id']}/liberar", data={"quantidade": "7"},
+         follow_redirects=True)
 alerta = db.um("""SELECT n.* FROM notificacoes n JOIN usuarios u ON u.id=n.usuario_id
                   WHERE u.perfil='analista' AND n.titulo LIKE 'Estoque mínimo%%'
                   ORDER BY n.id DESC LIMIT 1""")
-assert alerta, "alerta de estoque mínimo deveria disparar"
+assert alerta, "alerta de estoque mínimo deveria disparar na liberação"
 print("   ✅ alerta de estoque mínimo disparado ao analista")
 
 # ══ PEÇA SEM CADASTRO ══════════════════════════════════════════

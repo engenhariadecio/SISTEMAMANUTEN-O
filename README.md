@@ -152,8 +152,9 @@ Uma OS reprovada **volta para o mesmo manutentor**, não para a fila de triagem.
 
 Quando o manutentor requisita uma peça, o pedido cai na tela do analista:
 
-- **Peça já cadastrada** → um único botão **Liberar material**, que dá baixa no
-  NLAG, lança o consumo na OS e avisa o manutentor. Se a compra chegou naquele
+- **Peça já cadastrada** → um único botão **Liberar material**. É neste momento
+  que a baixa acontece: o consumo entra no custo do equipamento e o manutentor é
+  avisado. Se a compra chegou naquele
   momento, um campo ao lado registra a entrada antes de liberar, no mesmo clique.
 - **Peça sem cadastro** → a ficha de cadastro aparece no lugar do botão. Só
   depois de cadastrada é que a liberação fica disponível.
@@ -161,7 +162,8 @@ Quando o manutentor requisita uma peça, o pedido cai na tela do analista:
 O histórico da OS e o da solicitação registram os dois lados:
 `Material requisitado ao analista` e `Material liberado pelo analista`.
 
-**A OS fica travada enquanto houver material pendente.** O manutentor não inicia
+**Nenhum pedido dá baixa sozinho, nem havendo saldo.** A OS fica travada
+enquanto houver material pendente. O manutentor não inicia
 nem retoma até o analista entregar tudo — a tela mostra quantos itens faltam e
 ele recebe e-mail a cada liberação.
 

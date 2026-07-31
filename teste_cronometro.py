@@ -86,10 +86,10 @@ db.executar("""INSERT INTO materiais (codigo, descricao, unidade, tipo)
                ON CONFLICT (codigo) DO NOTHING""")
 jaime.post(f"/os/{o['id']}/material",
            data={"codigo": "TSTC01", "descricao": "ROLAMENTO DE TESTE",
-                 "quantidade": "1", "pausar": "1"}, follow_redirects=True)
+                 "quantidade": "1"}, follow_redirects=True)
 assert db.scalar("SELECT status FROM ordens_servico WHERE id=%s",
                  (o["id"],), default="") == "aguardando_peca"
-print("   ✅ sem saldo → solicitação aberta e OS pausada")
+print("   ✅ pedido aberto e OS pausada automaticamente")
 
 # Enquanto o analista não liberar, a OS fica travada
 jaime.post(f"/os/{o['id']}/acao/retomar", follow_redirects=True)

@@ -113,11 +113,16 @@ db.executar("""INSERT INTO movimentacoes (codigo, tipo, quantidade, usuario)
 saldo = db.saldo_material("TESTE001")
 print(f"   material TESTE001 com saldo {saldo}")
 
-check("add material", c.post(f"/os/{o['id']}/material",
-                             data={"codigo": "TESTE001", "quantidade": "3", "baixar": "on"},
-                             follow_redirects=True))
+check("pedir material", c.post(f"/os/{o['id']}/material",
+                               data={"codigo": "TESTE001", "quantidade": "3"},
+                               follow_redirects=True))
+assert db.saldo_material("TESTE001") == 10.0, "o pedido não baixa sozinho"
+sm_t = db.um("SELECT * FROM solicitacoes_material ORDER BY id DESC LIMIT 1")
+print(f"   pedido virou SM #{sm_t['numero']} para o analista ✅")
+check("liberar material", c.post(f"/solicitacoes/{sm_t['id']}/liberar",
+                                 data={"quantidade": "3"}, follow_redirects=True))
 saldo2 = db.saldo_material("TESTE001")
-assert saldo2 == 7.0, f"baixa não funcionou: {saldo2}"
+assert saldo2 == 7.0, f"baixa na liberação não funcionou: {saldo2}"
 print(f"   baixa no estoque NLAG: {saldo} → {saldo2} ✅")
 
 # Conclusão

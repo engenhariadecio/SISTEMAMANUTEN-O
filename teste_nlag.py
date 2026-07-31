@@ -127,12 +127,20 @@ antes = db.saldo_material("6996974")
 jaime.post(f"/os/{o['id']}/material",
            data={"codigo": "6996974", "descricao": "ABR NYLON PRETO 400MMX4,8MM",
                  "quantidade": "50"}, follow_redirects=True)
-depois = db.saldo_material("6996974")
-print(f"   escolheu ABR NYLON · saldo {antes:g} → {depois:g}")
-assert depois == antes - 50
-print("   ✅ baixa automática ao escolher item com saldo")
+assert db.saldo_material("6996974") == antes, "não pode baixar antes da liberação"
+sm_com_saldo = db.um("SELECT * FROM solicitacoes_material ORDER BY id DESC LIMIT 1")
+print(f"   escolheu ABR NYLON (saldo {antes:g}) → SM #{sm_com_saldo['numero']}")
+print("   ✅ mesmo com saldo, o pedido vai para o analista")
 
-# Item zerado do catálogo → solicitação
+ana2 = entrar("maria")
+ana2.post(f"/solicitacoes/{sm_com_saldo['id']}/liberar",
+          data={"quantidade": "50"}, follow_redirects=True)
+depois = db.saldo_material("6996974")
+print(f"   analista liberou · saldo {antes:g} → {depois:g}")
+assert depois == antes - 50
+print("   ✅ a baixa acontece na liberação")
+
+# Item zerado do catálogo → também solicitação, com aviso de compra
 sm_antes = db.scalar("SELECT COUNT(*) AS n FROM solicitacoes_material")
 jaime.post(f"/os/{o['id']}/material",
            data={"codigo": "6998543", "descricao": "ABRACADEIRA ACO CARBONO",

@@ -275,6 +275,7 @@ def liberar(sid):
                     (mat["codigo"], qtd, session["nome"],
                      f"Liberado na SM #{s['numero']}", s["os_id"]))
         saldo = db.saldo_material(mat["codigo"])
+        _alerta_minimo(mat, saldo)
 
     db.executar("""UPDATE solicitacoes_material
                    SET situacao='Liberado', codigo_final=COALESCE(codigo_final,%s),
@@ -365,6 +366,20 @@ def cadastrar(sid):
                  f"{descricao} agora tem o código {codigo}.",
                  url_for("sol.detalhe", sid=sid))
     return redirect(url_for("sol.detalhe", sid=sid))
+
+
+def _alerta_minimo(material, saldo_novo):
+    """Avisa o analista quando a liberação cruza o estoque mínimo."""
+    minimo = float(material["estoque_min"] or 0)
+    if minimo and saldo_novo < minimo:
+        sugestao = max(float(material["estoque_max"] or 0) - saldo_novo,
+                       minimo - saldo_novo)
+        db.notificar_perfis(
+            ("analista", "lider", "supervisao"),
+            f"Estoque mínimo atingido — {material['codigo']}",
+            f"{material['descricao']} — saldo {saldo_novo:g} {material['unidade']} "
+            f"(mín. {minimo:g}). Sugestão de compra: {max(sugestao, 0):g}.",
+            url_for("mat.alertas"))
 
 
 def _pendentes_da_os(os_id):

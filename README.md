@@ -150,6 +150,14 @@ Uma OS reprovada **volta para o mesmo manutentor**, não para a fila de triagem.
 
 ### Atendimento do analista
 
+**Painel de liberação** (*Solicitações → Liberação de materiais*): a fila do
+almoxarifado organizada **por ordem de serviço**, não por solicitação solta.
+Cada OS aparece com criticidade, equipamento, manutentor responsável e há quantas
+horas o pedido espera — as de máquina parada vêm primeiro. Dentro dela, todos os
+itens pedidos, cada um com foto, saldo atual e o que falta para liberar:
+*pronto*, *faltam N* ou *cadastrar*. Um botão libera de uma vez tudo o que está
+pronto, e o aviso diz exatamente o que travou cada item restante.
+
 Quando o manutentor requisita uma peça, o pedido cai na tela do analista:
 
 - **Peça já cadastrada** → um único botão **Liberar material**. É neste momento
@@ -371,6 +379,10 @@ Plano de materiais · indicadores · relatórios · depósito NLAG
 **Analista de Materiais** — dono do depósito NLAG completo: saldo, cadastro,
 entrada, saída, inventário, histórico, coletor, etiquetas, importações,
 exportação e alertas. Mais o tratamento das solicitações e os relatórios.
+
+> **A OS aguardando aprovação continua na lista de abertas.** Ela não sumiu da
+> tela quando é a vez do solicitante decidir: o painel dele abre com um aviso em
+> destaque e a linha vem marcada como "sua vez".
 
 | Perfil | O que pode fazer |
 |---|---|

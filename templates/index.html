@@ -6,7 +6,34 @@
 {% block conteudo %}
 
 <!-- ── KPIs ── -->
+{% if minhas_aprovar %}
+<a href="{{ url_for('os.lista', status='aprovacao') }}"
+   class="card mb-3 text-decoration-none text-reset d-block"
+   style="border-left:5px solid var(--verde)">
+  <div class="card-body d-flex flex-wrap align-items-center gap-3">
+    <i class="bi bi-patch-question-fill fs-2 text-success"></i>
+    <div class="flex-grow-1">
+      <div class="fw-bold">
+        {{ minhas_aprovar }} ordem(ns) de serviço esperando a sua avaliação</div>
+      <small class="text-mudo">
+        A manutenção concluiu o serviço. Confirme se o problema foi resolvido —
+        enquanto você não responder, a OS fica pendente.</small>
+    </div>
+    <span class="btn btn-decio"><i class="bi bi-arrow-right me-1"></i>Avaliar agora</span>
+  </div>
+</a>
+{% endif %}
+
 <div class="row g-3 mb-3">
+  {% if pode('tratar_solicitacao') and resumo.liberar %}
+  <div class="col-6 col-lg-2">
+    <a href="{{ url_for('sol.liberacao') }}" class="card text-decoration-none text-reset h-100">
+      <div class="kpi"><div class="icone i-amb"><i class="bi bi-box-arrow-right"></i></div>
+        <div><div class="valor">{{ resumo.liberar }}</div>
+          <div class="rotulo">Para liberar</div></div></div>
+    </a>
+  </div>
+  {% endif %}
   {% if pode('os_triagem') %}
   <div class="col-6 col-lg-2">
     <a href="{{ url_for('os.triagem') }}" class="card text-decoration-none text-reset h-100">

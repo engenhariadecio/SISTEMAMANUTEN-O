@@ -83,6 +83,7 @@
   {% endif %}
 
   <div class="nav-section">Solicitações</div>
+  {{ item('sol.liberacao', 'box-arrow-right', 'Liberação de materiais', 'tratar_solicitacao') }}
   {% if u.perfil == 'manutentor' %}
   {{ item('sol.lista', 'card-list', 'Minhas solicitações') }}
   {% else %}

@@ -85,7 +85,12 @@
             <td data-rotulo="Problema" style="max-width:280px"><span class="text-truncate d-block">{{ o.descricao_problema }}</span></td>
             <td data-rotulo="Solicitante"><small>{{ o.solicitante or '—' }}</small></td>
             <td data-rotulo="Responsável"><small>{{ o.responsavel or '—' }}</small></td>
-            <td data-rotulo="Situação"><span class="st st-{{ o.status }}">{{ STATUS_LABEL.get(o.status, o.status) }}</span>
+            <td data-rotulo="Situação">
+              <span class="st st-{{ o.status }}">{{ STATUS_LABEL.get(o.status, o.status) }}</span>
+              {% if o.status == 'aguardando_aprovacao' and o.solicitante_id == u.id %}
+              <span class="pill text-success d-block mt-1" style="font-size:.66rem">
+                <i class="bi bi-hand-index-thumb-fill"></i> sua vez</span>
+              {% endif %}
                 {% if o.maquina_parada %}<i class="bi bi-exclamation-octagon-fill text-danger ms-1"></i>{% endif %}</td>
             <td data-rotulo="Abertura"><small class="text-mudo">{{ o.data_abertura|dt('%d/%m/%y %H:%M') }}</small></td>
             <td data-rotulo="Tempo"><small>{{ o.tempo_trabalho_seg|dur }}</small></td>

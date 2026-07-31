@@ -226,6 +226,143 @@ def _material_da_solicitacao(s):
     return None
 
 
+@bp.route("/liberacao")
+@exige("tratar_solicitacao")
+def liberacao():
+    """
+    Fila do almoxarifado, organizada por ordem de serviço.
+    O analista vê a OS, os materiais dela e libera tudo de uma vez.
+    """
+    ordens = db.query("""
+        SELECT o.id, o.numero, o.criticidade, o.status, o.maquina_parada,
+               o.descricao_problema, o.data_abertura,
+               e.codigo AS eq_codigo, e.nome AS eq_nome,
+               COALESCE(e.nome, o.equipamento_outro) AS equipamento,
+               r.nome AS responsavel, s.nome AS solicitante,
+               ct.nome AS setor,
+               COUNT(sm.id) AS pendentes,
+               MIN(sm.criado_em) AS pedido_em,
+               EXTRACT(EPOCH FROM (NOW() - MIN(sm.criado_em)))/3600 AS horas_espera
+        FROM solicitacoes_material sm
+        JOIN ordens_servico o ON o.id = sm.os_id
+        LEFT JOIN equipamentos e ON e.id = o.equipamento_id
+        LEFT JOIN usuarios r ON r.id = o.responsavel_id
+        LEFT JOIN usuarios s ON s.id = o.solicitante_id
+        LEFT JOIN centros_trabalho ct ON ct.id = o.centro_trabalho_id
+        WHERE sm.situacao <> ALL(%s)
+          AND o.status NOT IN ('concluida','cancelada')
+        GROUP BY o.id, e.codigo, e.nome, r.nome, s.nome, ct.nome
+        ORDER BY o.maquina_parada DESC, MIN(sm.criado_em)""", (list(ATENDIDAS),))
+
+    # Os itens de cada OS, com o saldo do momento
+    itens = {}
+    for o in ordens or []:
+        linhas = db.query("""SELECT sm.*, u.nome AS pediu
+                             FROM solicitacoes_material sm
+                             LEFT JOIN usuarios u ON u.id = sm.solicitante_id
+                             WHERE sm.os_id=%s AND sm.situacao <> ALL(%s)
+                             ORDER BY sm.id""", (o["id"], list(ATENDIDAS)))
+        detalhe = []
+        for l in linhas or []:
+            mat = _material_da_solicitacao(l)
+            qtd = float(l["quantidade"] or 0)
+            saldo = (db.saldo_material(mat["codigo"])
+                     if mat and mat["tipo"] == "NLAG" else None)
+            detalhe.append({
+                "sm": l, "mat": mat, "qtd": qtd, "saldo": saldo,
+                "falta": round(max(qtd - saldo, 0), 3) if saldo is not None else 0,
+                "pronto": bool(mat) and (saldo is None or saldo >= qtd),
+            })
+        itens[o["id"]] = detalhe
+
+    # Solicitações sem OS vinculada (reposição de estoque pedida pela liderança)
+    avulsas = db.query("""SELECT sm.*, u.nome AS pediu FROM solicitacoes_material sm
+                          LEFT JOIN usuarios u ON u.id = sm.solicitante_id
+                          WHERE sm.os_id IS NULL AND sm.situacao <> ALL(%s)
+                          ORDER BY sm.criado_em""", (list(ATENDIDAS),))
+
+    total = sum(o["pendentes"] for o in ordens or [])
+    return render_template("sol/liberacao.html", ordens=ordens, itens=itens,
+                           avulsas=avulsas, total=total, CORES=CORES)
+
+
+@bp.route("/os/<int:os_id>/liberar-tudo", methods=["POST"])
+@exige("tratar_solicitacao")
+def liberar_tudo(os_id):
+    """Libera de uma vez os itens da OS que já têm cadastro e saldo."""
+    o = db.um("SELECT numero FROM ordens_servico WHERE id=%s", (os_id,))
+    if not o:
+        abort(404)
+
+    pendentes = db.query("""SELECT * FROM solicitacoes_material
+                            WHERE os_id=%s AND situacao <> ALL(%s) ORDER BY id""",
+                         (os_id, list(ATENDIDAS)))
+    liberados, travados = [], []
+    for s in pendentes or []:
+        mat = _material_da_solicitacao(s)
+        qtd = float(s["quantidade"] or 0)
+        if not mat:
+            travados.append(f"{s['descricao'][:28]} (sem cadastro)")
+            continue
+        if mat["tipo"] == "NLAG" and db.saldo_material(mat["codigo"]) < qtd:
+            travados.append(f"{mat['codigo']} (saldo insuficiente)")
+            continue
+        _executar_liberacao(s, mat, qtd)
+        liberados.append(mat["codigo"])
+
+    if liberados:
+        flash(f"{len(liberados)} item(ns) liberado(s) para a OS #{o['numero']}: "
+              f"{', '.join(liberados)}.", "success")
+    if travados:
+        flash("Precisam de atenção antes de liberar: " + " · ".join(travados), "warning")
+    if not liberados and not travados:
+        flash("Nenhum item pendente nesta OS.", "info")
+    return redirect(request.referrer or url_for("sol.liberacao"))
+
+
+def _executar_liberacao(s, mat, qtd):
+    """Baixa, registra na OS e avisa — o miolo da liberação."""
+    if mat["tipo"] == "NLAG":
+        db.executar("""INSERT INTO movimentacoes
+                       (codigo, tipo, quantidade, usuario, observacao, os_id)
+                       VALUES (%s,'SAIDA',%s,%s,%s,%s)""",
+                    (mat["codigo"], qtd, session["nome"],
+                     f"Liberado na SM #{s['numero']}", s["os_id"]))
+        _alerta_minimo(mat, db.saldo_material(mat["codigo"]))
+
+    db.executar("""UPDATE solicitacoes_material
+                   SET situacao='Liberado', codigo_final=COALESCE(codigo_final,%s),
+                       dt_chegada=COALESCE(dt_chegada, CURRENT_DATE), atualizado_em=NOW()
+                   WHERE id=%s""", (mat["codigo"], s["id"]))
+    db.executar("""INSERT INTO solicitacao_historico
+                   (solicitacao_id, usuario_id, situacao, comentario)
+                   VALUES (%s,%s,'Liberado',%s)""",
+                (s["id"], session["uid"],
+                 f"Material liberado pelo analista: {qtd:g} {mat['unidade']} de "
+                 f"{mat['descricao']} ({mat['codigo']})."))
+
+    if s["os_id"]:
+        db.executar("""INSERT INTO os_materiais
+                       (os_id, material_id, codigo, descricao, quantidade, origem,
+                        valor_unit, usuario_id, baixado)
+                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                    (s["os_id"], mat["id"], mat["codigo"], mat["descricao"], qtd,
+                     mat["tipo"], mat["valor_unit"] or 0, session["uid"],
+                     mat["tipo"] == "NLAG"))
+        db.executar("""INSERT INTO os_apontamentos (os_id, usuario_id, tipo, descricao)
+                       VALUES (%s,%s,'material',%s)""",
+                    (s["os_id"], session["uid"],
+                     f"Material liberado pelo analista: {qtd:g} {mat['unidade']} de "
+                     f"{mat['descricao']} ({mat['codigo']}) — SM #{s['numero']}."))
+
+    completa = db.um("""SELECT sm.*, o.numero AS os_numero, u.nome AS solicitante
+                        FROM solicitacoes_material sm
+                        LEFT JOIN ordens_servico o ON o.id=sm.os_id
+                        LEFT JOIN usuarios u ON u.id=sm.solicitante_id
+                        WHERE sm.id=%s""", (s["id"],))
+    _avisar_liberacao(completa, mat, qtd)
+
+
 @bp.route("/<int:sid>/liberar", methods=["POST"])
 @exige("tratar_solicitacao")
 def liberar(sid):

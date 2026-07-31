@@ -15,6 +15,7 @@ SUITES=(
   teste_sistema          # fluxo geral, cadastros e rotas
   teste_nlag             # migração do depósito e catálogo de peças
   teste_liberacao        # atendimento do analista
+  teste_painel_liberacao # fila do almoxarifado por OS
   teste_relogio          # cronômetro, paleta e responsividade
   teste_cronometro       # ciclo do manutentor
   teste_fluxo            # triagem do líder, ponta a ponta

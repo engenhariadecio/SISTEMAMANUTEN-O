@@ -48,8 +48,10 @@ MOTIVOS_PAUSA = [
 ]
 
 # Situações consideradas "em aberto" na fila e nos filtros
+# Uma OS aguardando aprovação ainda NÃO acabou: continua na lista de abertas,
+# senão ela some da tela justamente quando é a vez do solicitante decidir.
 ABERTAS = ("aberta", "atribuida", "em_andamento", "pausada",
-           "aguardando_peca", "reprovada")
+           "aguardando_peca", "reprovada", "aguardando_aprovacao")
 
 STATUS_LABEL = {
     "aberta": "Aguardando triagem",

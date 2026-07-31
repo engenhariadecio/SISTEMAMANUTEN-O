@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block titulo %}Liberação de materiais{% endblock %}
+{% block cabecalho %}Liberação de Materiais{% endblock %}
+{% block titulo_mob %}Liberação{% endblock %}
+
+{% block conteudo %}
+
+{% if total %}
+<div class="alert alert-warning d-flex align-items-center gap-2">
+  <i class="bi bi-box-arrow-right fs-5"></i>
+  <div><strong>{{ total }} item(ns) aguardando liberação em {{ ordens|length }} ordem(ns).</strong>
+    Enquanto você não liberar, o manutentor não consegue trabalhar na OS.</div>
+</div>
+{% endif %}
+
+{% for o in ordens %}
+<div class="card mb-3">
+  <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <span class="crit" style="width:30px;height:30px;font-size:.9rem;
+            background:{{ CRIT.get(o.criticidade, {}).get('cor', '#5B93C4') }}">
+        {{ o.criticidade }}</span>
+      <span class="fw-bold">OS #{{ o.numero }}</span>
+      <span>{{ o.eq_codigo or '' }} — {{ o.equipamento or 'sem equipamento' }}</span>
+      {% if o.maquina_parada %}
+      <span class="pill text-danger"><i class="bi bi-exclamation-octagon-fill"></i>
+        MÁQUINA PARADA</span>{% endif %}
+      <span class="st st-{{ o.status }}">{{ o.status|replace('_',' ') }}</span>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <small class="text-mudo">
+        <i class="bi bi-clock me-1"></i>pedido há
+        <strong class="{{ 'text-danger' if o.horas_espera and o.horas_espera > 4 }}">
+          {{ (o.horas_espera or 0)|round(0)|int }}h</strong></small>
+      <a href="{{ url_for('os.detalhe', os_id=o.id) }}"
+         class="btn btn-sm btn-outline-secondary" title="Abrir a OS">
+        <i class="bi bi-box-arrow-up-right"></i></a>
+    </div>
+  </div>
+
+  <div class="card-body">
+    <div class="d-flex flex-wrap gap-3 text-mudo mb-3" style="font-size:.83rem">
+      <span><i class="bi bi-person-gear me-1"></i>{{ o.responsavel or 'sem responsável' }}</span>
+      <span><i class="bi bi-geo-alt me-1"></i>{{ o.setor or '—' }}</span>
+      <span class="flex-grow-1" style="min-width:200px">
+        <i class="bi bi-chat-left-text me-1"></i>{{ o.descricao_problema[:90] }}</span>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead><tr>
+          <th style="width:52px"></th><th>Item</th><th class="text-end">Pedido</th>
+          <th class="text-end">Em estoque</th><th>Situação</th>
+          <th style="width:220px" class="text-end">Liberar</th></tr></thead>
+        <tbody>
+          {% for d in itens[o.id] %}
+          <tr>
+            <td>
+              {% if d.mat %}
+              <img src="{{ url_for('mat.imagem', codigo=d.mat.codigo) }}"
+                   style="width:38px;height:38px;object-fit:cover;border-radius:7px">
+              {% else %}
+              <div style="width:38px;height:38px;border-radius:7px;background:#EEF1F6;
+                          display:flex;align-items:center;justify-content:center">
+                <i class="bi bi-question-lg text-mudo"></i></div>
+              {% endif %}
+            </td>
+            <td>
+              <div class="fw-semibold" style="font-size:.87rem">{{ d.sm.descricao }}</div>
+              <small class="text-mudo">
+                SM #{{ d.sm.numero }}
+                {% if d.mat %} · {{ d.mat.codigo }} · {{ d.mat.tipo }}
+                  {% if d.mat.localizacao %} · {{ d.mat.localizacao }}{% endif %}
+                {% else %} · sem cadastro{% endif %}
+              </small>
+            </td>
+            <td class="text-end fw-bold">{{ d.qtd|num(0) }}
+              {{ d.mat.unidade if d.mat else '' }}</td>
+            <td class="text-end">
+              {% if d.saldo is not none %}
+              <span class="fw-bold {{ 'text-success' if not d.falta else 'text-danger' }}">
+                {{ d.saldo|num(0) }}</span>
+              {% else %}<span class="text-mudo">—</span>{% endif %}
+            </td>
+            <td>
+              {% if not d.mat %}
+              <span class="pill text-warning"><i class="bi bi-pencil-square"></i>
+                cadastrar</span>
+              {% elif d.falta %}
+              <span class="pill text-danger">faltam {{ d.falta|num(0) }}</span>
+              {% else %}
+              <span class="pill text-success"><i class="bi bi-check-lg"></i> pronto</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              {% if d.pronto %}
+              <form method="post" action="{{ url_for('sol.liberar', sid=d.sm.id) }}"
+                    class="d-flex gap-1 justify-content-end">
+                <input type="number" name="quantidade" step="0.001" min="0.001"
+                       value="{{ d.qtd|num(0) }}" class="form-control form-control-sm"
+                       style="width:82px">
+                <button class="btn btn-sm btn-decio text-nowrap">
+                  <i class="bi bi-box-arrow-right me-1"></i>Liberar</button>
+              </form>
+              {% else %}
+              <a href="{{ url_for('sol.detalhe', sid=d.sm.id) }}"
+                 class="btn btn-sm btn-outline-decio text-nowrap">
+                {% if not d.mat %}
+                <i class="bi bi-pencil-square me-1"></i>Cadastrar
+                {% else %}
+                <i class="bi bi-box-arrow-in-down me-1"></i>Dar entrada
+                {% endif %}</a>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% set prontos = itens[o.id]|selectattr('pronto')|list|length %}
+    {% if prontos > 1 %}
+    <form method="post" action="{{ url_for('sol.liberar_tudo', os_id=o.id) }}"
+          class="mt-3"
+          onsubmit="return confirm('Liberar os {{ prontos }} itens prontos desta OS?')">
+      <button class="btn btn-decio w-100">
+        <i class="bi bi-box-arrow-right me-1"></i>
+        Liberar os {{ prontos }} itens prontos da OS #{{ o.numero }}</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <div class="card-body text-center text-mudo py-5">
+    <i class="bi bi-check2-circle fs-1 d-block mb-2 opacity-50"></i>
+    Nenhuma ordem de serviço aguardando material.
+    <div class="mt-3">
+      <a href="{{ url_for('sol.lista') }}" class="btn btn-sm btn-outline-decio">
+        Ver todas as solicitações</a>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+{% if avulsas %}
+<div class="card">
+  <div class="card-header"><i class="bi bi-cart-plus-fill me-1"></i>
+    Reposição de estoque — pedidos sem OS</div>
+  <div class="card-body p-0">
+    <table class="table table-sm mb-0 align-middle">
+      <thead><tr><th>SM</th><th>Item</th><th class="text-end">Qtd</th>
+        <th>Pedido por</th><th>Situação</th><th></th></tr></thead>
+      <tbody>
+        {% for s in avulsas %}
+        <tr>
+          <td class="fw-bold">#{{ s.numero }}</td>
+          <td style="font-size:.86rem">{{ s.descricao }}</td>
+          <td class="text-end">{{ s.quantidade|num(0) }}</td>
+          <td><small>{{ s.pediu }}</small></td>
+          <td><span class="pill">{{ s.situacao }}</span></td>
+          <td class="text-end">
+            <a href="{{ url_for('sol.detalhe', sid=s.id) }}"
+               class="btn btn-sm btn-decio px-2 py-1">
+              <i class="bi bi-box-arrow-up-right"></i></a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

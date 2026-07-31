@@ -16,7 +16,14 @@ def index():
     ano, semana, _ = hoje.isocalendar()
 
     # ── Cartões de resumo ──
+    minhas_aprovar = db.scalar("""SELECT COUNT(*) AS n FROM ordens_servico
+                                  WHERE status='aguardando_aprovacao'
+                                    AND solicitante_id=%s""", (uid,), default=0)
     resumo = {
+        "liberar": db.scalar("""SELECT COUNT(*) AS n FROM solicitacoes_material
+                                WHERE situacao NOT IN
+                                ('Liberado','Concluído','Recusado','Cancelado')""",
+                             default=0),
         "triagem": db.scalar("""SELECT COUNT(*) AS n FROM ordens_servico
                                 WHERE status='aberta' AND responsavel_id IS NULL"""),
         "abertas": db.scalar("""SELECT COUNT(*) AS n FROM ordens_servico
@@ -60,7 +67,7 @@ def index():
 
     # ── Fila de atendimento ──
     ABERTAS = ("aberta", "atribuida", "em_andamento", "pausada",
-               "aguardando_peca", "reprovada")
+               "aguardando_peca", "reprovada", "aguardando_aprovacao")
     filtro, params = "", [list(ABERTAS)]
     if perfil == "manutentor":
         filtro = "AND o.responsavel_id=%s"
@@ -104,4 +111,5 @@ def index():
         (hoje - timedelta(days=13), hoje))
 
     return render_template("index.html", resumo=resumo, fila=fila, minhas=minhas,
+                           minhas_aprovar=minhas_aprovar,
                            parados=parados, serie=serie, semana=semana, ano=ano)

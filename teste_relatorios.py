@@ -155,7 +155,7 @@ from werkzeug.security import generate_password_hash
 for usuario, nome, perfil in [("jaime2", "Jaime", "manutentor"),
                               ("maria2", "Maria", "analista")]:
     db.executar("""INSERT INTO usuarios (usuario, senha_hash, nome, perfil)
-                   VALUES (%s,%s,%s,%s) ON CONFLICT (usuario) DO UPDATE SET perfil=EXCLUDED.perfil""",
+                   VALUES (%s,%s,%s,%s) ON CONFLICT (usuario) DO UPDATE SET perfil=EXCLUDED.perfil, nome=EXCLUDED.nome""",
                 (usuario, generate_password_hash("teste123"), nome, perfil))
 
 mnt = app.test_client(); mnt.post("/login", data={"usuario": "jaime2", "senha": "teste123"})

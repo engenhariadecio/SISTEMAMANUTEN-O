@@ -120,8 +120,17 @@ Uma OS reprovada **volta para o mesmo manutentor**, não para a fila de triagem.
 - **Catálogo de peças**: o manutentor escolhe o item numa lista com foto,
   código, descrição, unidade e saldo — não precisa decorar código. Um filtro
   "só com saldo" mostra o que dá para retirar agora.
+- **Entrada com etiqueta**, no mesmo formato do depósito NLAG: o formulário à
+  esquerda e o painel de impressão à direita, com prévia da etiqueta em escala.
+  Depois de lançar a entrada a etiqueta já fica pronta — informa quantas cópias
+  e imprime, com a quantidade de etiquetas independente da quantidade lançada.
+- **Etiqueta 100×50mm para a Zebra**, idêntica à do sistema original: cabeçalho
+  NLAG, código em corpo grande, unidade, descrição e o Code128 em 94mm.
+  A janela se imprime sozinha e fecha. O mesmo formato em todos os pontos do
+  sistema — dashboard, entrada e tela de etiquetas.
+- **Leitor de código de barras pela câmera** do celular na entrada e na saída.
 - **NLAG**: saldo controlado pelo sistema — entradas, saídas, ajuste de inventário,
-  histórico completo, etiquetas com código de barras Code128 e coletor.
+  histórico completo e coletor.
 - **HIBE/ERSA**: saldo importado da planilha do SAP, apenas para consulta de
   disponibilidade (sem controle de saldo).
 - Quando o manutentor aplica material na OS, o saldo NLAG é baixado na hora.
@@ -138,6 +147,23 @@ Uma OS reprovada **volta para o mesmo manutentor**, não para a fila de triagem.
   geração das solicitações de compra direto da lista.
 - Importadores prontos para as planilhas atuais (aba SALDO NLAG, aba SALDO
   HIBE-ERSA do SAP e cadastro geral) — reconhece as colunas automaticamente.
+
+### Atendimento do analista
+
+Quando o manutentor requisita uma peça, o pedido cai na tela do analista:
+
+- **Peça já cadastrada** → um único botão **Liberar material**, que dá baixa no
+  NLAG, lança o consumo na OS e avisa o manutentor. Se a compra chegou naquele
+  momento, um campo ao lado registra a entrada antes de liberar, no mesmo clique.
+- **Peça sem cadastro** → a ficha de cadastro aparece no lugar do botão. Só
+  depois de cadastrada é que a liberação fica disponível.
+
+O histórico da OS e o da solicitação registram os dois lados:
+`Material requisitado ao analista` e `Material liberado pelo analista`.
+
+**A OS fica travada enquanto houver material pendente.** O manutentor não inicia
+nem retoma até o analista entregar tudo — a tela mostra quantos itens faltam e
+ele recebe e-mail a cada liberação.
 
 ### Solicitação de Material
 Substitui o formulário + a planilha “Monitoramento de Solicitação de Materiais”,
@@ -513,6 +539,7 @@ sistema-manutencao-decio/
 ├── static/
 │   ├── css/app.css           Identidade visual (verde #28A353 · azul #10477D)
 │   └── img/logo_decio.png
+├── rodar_testes.sh           Executa as 13 suítes na ordem certa
 ├── scripts/
 │   └── backup_windows.bat    Backup agendável no Windows
 ├── requirements.txt
@@ -555,19 +582,12 @@ schema se atualiza sozinho, sem perder dados.
 **Rodar os testes:**
 
 ```bash
-python teste_sistema.py          # fluxo completo do sistema
-python teste_plano_materiais.py  # plano de materiais
-python teste_criticidade.py      # níveis e matriz de criticidade
-python teste_perfis.py           # permissões e fluxo de pedido de peça
-python teste_relatorios.py       # relatórios em Excel e backup
-python teste_email.py            # disparos de e-mail
-python teste_fluxo.py            # fluxo ponta a ponta com triagem
-python teste_email_config.py     # configuração de e-mail pela tela
-python teste_recorte.py          # recorte de acesso por perfil
-python teste_nlag.py             # migração do NLAG e catálogo de peças
-python teste_cronometro.py       # ciclo do manutentor, do início à aprovação
-python teste_relogio.py          # cronômetro, paleta e responsividade
+export DATABASE_URL="postgresql://..."
+./rodar_testes.sh
 ```
+
+São 13 suítes de integração contra um PostgreSQL real. Rode pelo script: algumas
+usam dados criados pelas anteriores, e ele garante a ordem.
 
 ---
 
@@ -581,9 +601,11 @@ Cores extraídas da logo da empresa:
 | Azul institucional | `#10477D` |
 | Gradiente (cabeçalhos, botões principais) | verde → azul |
 
-**Todos os botões do site usam apenas o verde e o azul da logo** — nenhuma
-variante do Bootstrap escapa da paleta. As ações sem volta (excluir, reprovar)
-são protegidas por confirmação em tela, não por cor.
+**Todos os botões usam o gradiente da logo (verde → azul)**, sem exceção: os
+preenchidos levam o gradiente no fundo e deslizam ao passar o mouse; os de
+contorno levam o mesmo gradiente na borda e se preenchem ao interagir. As ações
+sem volta (excluir, reprovar) são protegidas por confirmação em tela, não por cor.
+O teste automatizado quebra se algum botão sair da paleta.
 
 O layout é **responsivo automaticamente**, sem tela separada para tablet: no
 celular e no tablet as tabelas viram cartões, os botões ganham altura de toque

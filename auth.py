@@ -50,8 +50,10 @@ PERMISSOES = {
     "material_mov":     ("admin", "supervisao", "lider", "analista"),
     "material_cad":     GESTAO_ANALISTA,
 
-    # ── Solicitar peça: quem executa a manutenção. O analista atende, não pede ──
-    "solicitar_material": EXECUCAO,
+    # ── Pedido de peça ──
+    # O manutentor pede SEMPRE de dentro da OS, pelo catálogo. Este formulário
+    # avulso existe só para a liderança repor estoque fora de uma ordem.
+    "solicitar_material": GESTAO,
     "tratar_solicitacao": GESTAO_ANALISTA,
 
     "indicadores":      ("admin", "supervisao", "lider", "analista"),

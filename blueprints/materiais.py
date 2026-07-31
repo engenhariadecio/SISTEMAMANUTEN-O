@@ -204,26 +204,69 @@ def imagem(codigo):
 @bp.route("/entrada", methods=["GET", "POST"])
 @exige("material_mov")
 def entrada():
+    """
+    Entrada de material com geração de etiqueta, no mesmo formato do
+    depósito NLAG: o formulário à esquerda, o painel de impressão à direita.
+    """
+    material = None
+    barcode_img = None
+    quantidade = None
+    codigo_pre = (request.args.get("codigo") or "").strip().upper()
+
+    if codigo_pre:
+        material = db.um("SELECT * FROM materiais WHERE codigo=%s", (codigo_pre,))
+        if material:
+            barcode_img = gerar_barcode_b64(codigo_pre)
+
     if request.method == "POST":
         codigo = request.form.get("codigo", "").strip().upper()
-        qtd = float(request.form.get("quantidade") or 0)
         obs = request.form.get("observacao", "").strip()
-        m = db.um("SELECT * FROM materiais WHERE codigo=%s", (codigo,))
-        if not m:
-            flash(f"Material {codigo} não cadastrado.", "danger")
-        elif qtd <= 0:
-            flash("Quantidade inválida.", "warning")
-        else:
-            db.executar("""INSERT INTO movimentacoes (codigo, tipo, quantidade, usuario, observacao)
-                           VALUES (%s,'ENTRADA',%s,%s,%s)""",
-                        (codigo, qtd, session["nome"], obs))
-            flash(f"Entrada de {qtd:g} {m['unidade']} — {m['descricao']}.", "success")
-        return redirect(url_for("mat.entrada"))
+        try:
+            qtd = float(request.form.get("quantidade") or 0)
+            if qtd <= 0:
+                raise ValueError
+        except ValueError:
+            flash("Quantidade inválida.", "danger")
+            return redirect(url_for("mat.entrada", codigo=codigo))
+
+        mat = db.um("SELECT * FROM materiais WHERE codigo=%s", (codigo,))
+        if not mat:
+            flash(f"Código {codigo} não encontrado no cadastro.", "danger")
+            return redirect(url_for("mat.entrada"))
+
+        db.executar("""INSERT INTO movimentacoes (codigo, tipo, quantidade, usuario, observacao)
+                       VALUES (%s,'ENTRADA',%s,%s,%s)""",
+                    (codigo, qtd, session["nome"], obs))
+        saldo = db.saldo_material(codigo)
+        flash(f"Entrada de {qtd:g} {mat['unidade']} registrada para {codigo}. "
+              f"Novo saldo: {saldo:g}. Imprima a etiqueta ao lado.", "success")
+
+        # Deixa o material carregado para a impressão logo em seguida
+        material = mat
+        barcode_img = gerar_barcode_b64(codigo)
+        quantidade = qtd
 
     ultimas = db.query("""SELECT mv.*, m.descricao, m.unidade FROM movimentacoes mv
                           LEFT JOIN materiais m ON m.codigo=mv.codigo
-                          WHERE mv.tipo='ENTRADA' ORDER BY mv.data_hora DESC LIMIT 15""")
-    return render_template("mat/entrada.html", ultimas=ultimas)
+                          WHERE mv.tipo='ENTRADA' ORDER BY mv.data_hora DESC LIMIT 10""")
+    return render_template("mat/entrada.html", material=material,
+                           barcode_img=barcode_img, quantidade=quantidade,
+                           codigo_pre=codigo_pre, ultimas=ultimas,
+                           agora=db.agora().strftime("%d/%m/%Y %H:%M"))
+
+
+@bp.route("/print/<codigo>")
+@exige("material_ver")
+def print_etiqueta(codigo):
+    """Uma etiqueta em 100x50mm que se imprime sozinha e fecha a janela."""
+    material = db.um("SELECT * FROM materiais WHERE codigo=%s",
+                     (codigo.strip().upper(),))
+    if not material:
+        return (f"<h3 style='font-family:sans-serif;padding:20px;color:#10477D'>"
+                f"Código {codigo} não encontrado.</h3>"), 404
+    return render_template("mat/etiqueta_zebra.html", material=material,
+                           barcode_img=gerar_barcode_b64(material["codigo"]),
+                           agora=db.agora().strftime("%d/%m/%Y %H:%M"))
 
 
 @bp.route("/saida", methods=["GET", "POST"])

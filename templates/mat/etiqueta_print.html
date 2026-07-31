@@ -16,7 +16,10 @@ body { font-family: Arial, Helvetica, sans-serif; margin: 0; }
 </style></head>
 <body>
 <div class="noprint" style="padding:10px;text-align:center">
-  <button onclick="window.print()" style="padding:8px 20px;font-size:14px;cursor:pointer">Imprimir</button>
+  <button onclick="window.print()"
+    style="padding:10px 26px;font-size:14px;cursor:pointer;border:none;border-radius:9px;
+           font-weight:700;color:#fff;font-family:Arial,sans-serif;
+           background:linear-gradient(120deg,#28A353 0%,#10477D 100%)">Imprimir</button>
 </div>
 <div class="folha">
   {% for e in etiquetas %}

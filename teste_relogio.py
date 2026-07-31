@@ -16,7 +16,7 @@ for u, n, p in [("rel_sol", "Solicitante do Relógio", "solicitante"),
                 ("rel_mnt", "Manutentor do Relógio", "manutentor"),
                 ("rel_lid", "Líder do Relógio", "lider")]:
     db.executar("""INSERT INTO usuarios (usuario,senha_hash,nome,perfil) VALUES (%s,%s,%s,%s)
-                   ON CONFLICT (usuario) DO UPDATE SET perfil=EXCLUDED.perfil""",
+                   ON CONFLICT (usuario) DO UPDATE SET perfil=EXCLUDED.perfil, nome=EXCLUDED.nome""",
                 (u, generate_password_hash("teste123"), n, p))
 
 
@@ -128,22 +128,41 @@ print("   ✅ ao retomar, o botão mostra de quanto tempo ele continua")
 
 # ══ PALETA ════════════════════════════════════════════════════
 print("\n── Paleta dos botões ──")
-css = open("static/css/app.css").read()
-for classe in [".btn-primary", ".btn-info", ".btn-success", ".btn-warning",
-               ".btn-secondary", ".btn-outline-primary", ".btn-outline-warning",
-               ".btn-outline-secondary", ".btn-outline-decio"]:
-    assert classe in css, f"{classe} sem definição na paleta"
-print("   ✅ todas as variantes do Bootstrap redefinidas nas cores da logo")
-assert "var(--verde)" in css and "var(--azul)" in css
-
-# Nenhuma regra de botão pode usar cor fora da paleta da logo
 import re
-fora = []
-for m in re.finditer(r'([^{}]*\.btn[^{}]*)\{([^}]*)\}', css):
-    if "var(--neg)" in m.group(2) or re.search(r'#[Dd]6473[Ff]|#[Bb]93[Aa]33', m.group(2)):
-        fora.append(m.group(1).strip()[:50])
-assert not fora, f"botões fora da paleta: {fora}"
-print("   ✅ nenhum botão usa cor fora do verde e do azul da logo")
+css = open("static/css/app.css").read()
+
+VARIANTES = ["btn-decio", "btn-verde", "btn-azul", "btn-primary", "btn-secondary",
+             "btn-success", "btn-info", "btn-warning", "btn-danger", "btn-dark",
+             "btn-outline-decio", "btn-outline-primary", "btn-outline-secondary",
+             "btn-outline-success", "btn-outline-info", "btn-outline-warning",
+             "btn-outline-danger"]
+
+def tem_gradiente(variante):
+    for m in re.finditer(r"([^{}]*)\{([^}]*)\}", css):
+        if re.search(r"\." + variante + r"(?![\w-])", m.group(1)) and "gradiente" in m.group(2):
+            return True
+    return False
+
+sem = [v for v in VARIANTES if not tem_gradiente(v)]
+assert not sem, f"variantes sem o gradiente da logo: {sem}"
+print(f"   ✅ as {len(VARIANTES)} variantes de botão usam o gradiente verde → azul")
+
+# Nenhum botão pode ter fundo sólido fora da marca
+solidos = []
+for m in re.finditer(r"([^{}]*\.btn[^{}]*)\{([^}]*)\}", css):
+    seletor, corpo = m.group(1).strip(), m.group(2)
+    if any(x in seletor for x in ("btn-close", "btn-link", "disabled")):
+        continue
+    bg = re.search(r"background\s*:\s*([^;]+);", corpo)
+    if bg:
+        v = bg.group(1)
+        if not any(t in v for t in ("gradiente", "none", "#fff", "transparent", "#D8E0EC")):
+            solidos.append(f"{seletor[:40]} → {v.strip()[:26]}")
+assert not solidos, f"botões com fundo sólido: {solidos}"
+print("   ✅ nenhum botão ficou com cor chapada")
+
+assert "padding-box" in css and "border-box" in css
+print("   ✅ os de contorno usam a borda em gradiente, com o canto arredondado")
 
 # O modo tablet não existe mais — a tela única se adapta
 assert "tablet-card" not in css, "sobrou estilo do modo tablet"

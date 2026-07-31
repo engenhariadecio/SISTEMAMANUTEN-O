@@ -12,25 +12,32 @@
 {% if itens %}
 <form method="get" action="{{ url_for('mat.etiqueta_imprimir') }}" target="_blank">
 <div class="card">
-  <div class="card-header d-flex justify-content-between align-items-center">
-    <span><i class="bi bi-tags-fill me-1"></i> {{ itens|length }} resultado(s)</span>
+  <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <span><i class="bi bi-tags-fill me-1"></i> {{ itens|length }} resultado(s)
+      <small class="text-mudo ms-2">Zebra = uma etiqueta 100×50mm por vez</small></span>
     <div class="d-flex gap-2 align-items-center">
       <label class="mb-0" style="font-size:.82rem">Cópias:</label>
       <input type="number" name="copias" value="1" min="1" max="20" class="form-control form-control-sm" style="width:70px">
-      <button class="btn btn-sm btn-decio"><i class="bi bi-printer-fill me-1"></i>Imprimir selecionadas</button>
+      <button class="btn btn-sm btn-outline-decio">
+        <i class="bi bi-grid-3x3-gap-fill me-1"></i>Folha com as selecionadas</button>
     </div>
   </div>
   <div class="card-body p-0">
     <table class="table table-hover mb-0">
       <thead><tr><th style="width:40px"><input type="checkbox" id="todos" class="form-check-input"></th>
-        <th>Código</th><th>Descrição</th><th>UMB</th><th>Local</th></tr></thead>
+        <th>Código</th><th>Descrição</th><th>UMB</th><th>Local</th>
+        <th style="width:60px" class="text-center">Zebra</th></tr></thead>
       <tbody>
         {% for m in itens %}
         <tr><td><input type="checkbox" name="codigo" value="{{ m.codigo }}" class="form-check-input sel"></td>
           <td class="fw-semibold">{{ m.codigo }}</td>
           <td style="font-size:.85rem">{{ m.descricao[:48] }}</td>
           <td><small>{{ m.unidade }}</small></td>
-          <td><small class="text-mudo">{{ m.localizacao or '—' }}</small></td></tr>
+          <td><small class="text-mudo">{{ m.localizacao or '—' }}</small></td>
+          <td class="text-center">
+            <a href="{{ url_for('mat.print_etiqueta', codigo=m.codigo) }}" target="_blank"
+               class="btn btn-sm btn-decio px-2 py-1" title="Imprimir uma etiqueta 100x50mm">
+              <i class="bi bi-printer-fill"></i></a></td></tr>
         {% endfor %}
       </tbody>
     </table>

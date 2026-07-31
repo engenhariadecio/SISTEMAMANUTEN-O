@@ -58,6 +58,23 @@
   <div class="col-xl-7">
 
     <!-- ── CRONÔMETRO / AÇÕES ── -->
+    {% if materiais_pendentes and o.status not in ('concluida','cancelada') %}
+    <div class="card mb-3">
+      <div class="card-body">
+        <div class="d-flex flex-wrap align-items-center gap-3">
+          <i class="bi bi-hourglass-split fs-3 text-warning"></i>
+          <div class="flex-grow-1">
+            <div class="fw-bold">
+              {{ materiais_pendentes }} material(is) aguardando o analista</div>
+            <small class="text-mudo">
+              A OS libera para trabalhar assim que o analista entregar tudo.
+              Você é avisado por e-mail a cada liberação.</small>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
     {# ── Painel de situação: sempre diz ao manutentor o que está acontecendo ── #}
     {% if pode('os_executar') and o.status not in ('concluida','cancelada') %}
 
@@ -200,9 +217,7 @@
               <i class="bi bi-person-check me-1"></i>Atribuir</button>
           </form>
           {% endif %}
-          <a href="{{ url_for('sol.nova', os_id=o.id) }}" class="btn btn-sm btn-outline-primary text-nowrap"
-             title="Para peças com especificação, link de fornecedor ou pedido de cadastro">
-            <i class="bi bi-file-earmark-text me-1"></i>Solicitação detalhada</a>
+
         </div>
         {% endif %}
       </div>
@@ -313,8 +328,9 @@
 
         <small class="text-mudo d-block mt-2">
           <i class="bi bi-info-circle me-1"></i>
-          Se houver saldo no depósito NLAG a baixa é feita na hora. Se não houver,
-          o sistema abre automaticamente uma solicitação para o analista de materiais.
+          Todo pedido de peça sai daqui. Havendo saldo no NLAG a baixa é feita na
+          hora; não havendo, o sistema abre a solicitação para o analista de
+          materiais e avisa você quando ela for liberada.
         </small>
       </div>
       {% endif %}

@@ -196,12 +196,6 @@ tr[data-crit] { box-shadow: inset 4px 0 0 var(--cor-crit, #CFD8E5); }
 .st-cancelada { background: #E9ECEF; color: #6C757D; }
 
 /* ── BOTÕES ──────────────────────────────────────────────────── */
-.btn-decio { background: var(--gradiente); color: #fff; border: none; font-weight: 700; }
-.btn-decio:hover { color: #fff; filter: brightness(1.07); }
-.btn-verde { background: var(--verde); color: #fff; border: none; font-weight: 700; }
-.btn-verde:hover { background: var(--verde-esc); color: #fff; }
-.btn-azul { background: var(--azul); color: #fff; border: none; font-weight: 700; }
-.btn-azul:hover { background: #0B3660; color: #fff; }
 .btn { border-radius: 9px; font-size: .86rem; }
 .btn-lg { border-radius: 11px; }
 
@@ -324,16 +318,9 @@ tr[data-crit] { box-shadow: inset 4px 0 0 var(--cor-crit, #CFD8E5); }
 
 
 /* ── Botões de ação principais com a assinatura da marca ── */
-.btn-outline-warning, .btn-outline-info, .btn-outline-primary {
-  border-width: 1.5px; font-weight: 700;
-}
 .acoes-os .btn { border-radius: 11px; padding: 11px 8px; }
 .acoes-os .btn i { display: block; font-size: 1.25rem; margin-bottom: 2px; }
-.btn-verde, .btn-decio, .btn-azul { box-shadow: 0 2px 8px rgba(16,71,125,.18); }
-.btn-verde:hover, .btn-decio:hover, .btn-azul:hover {
-  box-shadow: 0 4px 14px rgba(16,71,125,.28); transform: translateY(-1px);
-}
-.btn { transition: transform .12s, box-shadow .12s, background .15s; }
+.btn { transition: transform .12s, box-shadow .12s, filter .15s; }
 
 
 /* Estados do cronômetro por motivo de pausa */
@@ -348,120 +335,105 @@ tr[data-crit] { box-shadow: inset 4px 0 0 var(--cor-crit, #CFD8E5); }
 
 
 /* ═══════════════════════════════════════════════════════════════
-   PALETA DOS BOTÕES — tudo nas cores da logo
-   Verde #28A353 · Azul #10477D
-   Exceção deliberada: ações destrutivas e negativas (excluir, reprovar,
-   saída de estoque) continuam em vermelho, senão o usuário não distingue
-   o que não tem volta.
+   PALETA DOS BOTÕES
+   Todo botão do site usa o gradiente da logo: verde #28A353 → azul #10477D.
+   Preenchidos levam o gradiente no fundo; os de contorno levam o mesmo
+   gradiente na borda (padding-box + border-box, que respeita o arredondado)
+   e se preenchem ao passar o mouse.
    ═══════════════════════════════════════════════════════════════ */
 
-/* ── Preenchidos ── */
-.btn-primary, .btn-info {
-  background: var(--azul); border-color: var(--azul); color: #fff;
+/* ── Preenchidos: todas as variantes recebem o gradiente ── */
+.btn-decio, .btn-verde, .btn-azul,
+.btn-primary, .btn-secondary, .btn-success, .btn-info,
+.btn-warning, .btn-danger, .btn-dark {
+  background: var(--gradiente);
+  background-size: 160% 100%;
+  background-position: 0% 0%;
+  border: none;
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(16,71,125,.18);
+  transition: background-position .35s ease, box-shadow .15s, transform .12s;
 }
-.btn-primary:hover, .btn-info:hover, .btn-primary:focus, .btn-info:focus {
-  background: #0B3660; border-color: #0B3660; color: #fff;
-}
-.btn-success {
-  background: var(--verde); border-color: var(--verde); color: #fff;
-}
-.btn-success:hover, .btn-success:focus {
-  background: var(--verde-esc); border-color: var(--verde-esc); color: #fff;
-}
-.btn-warning {
-  background: var(--azul-clr); border-color: var(--azul-clr); color: #fff;
-}
-.btn-warning:hover, .btn-warning:focus {
-  background: var(--azul); border-color: var(--azul); color: #fff;
-}
-.btn-secondary {
-  background: #5A6B7F; border-color: #5A6B7F; color: #fff;
-}
-.btn-secondary:hover { background: #46566A; border-color: #46566A; color: #fff; }
-.btn-dark { background: var(--sidebar-bg); border-color: var(--sidebar-bg); }
-
-/* ── Contornados ── */
-.btn-outline-primary, .btn-outline-info {
-  color: var(--azul); border-color: var(--azul);
-}
-.btn-outline-primary:hover, .btn-outline-info:hover {
-  background: var(--azul); border-color: var(--azul); color: #fff;
-}
-.btn-outline-success {
-  color: var(--verde-esc); border-color: var(--verde);
-}
-.btn-outline-success:hover {
-  background: var(--verde); border-color: var(--verde); color: #fff;
-}
-.btn-outline-warning {
-  color: var(--azul); border-color: var(--azul-clr);
-}
-.btn-outline-warning:hover {
-  background: var(--azul-clr); border-color: var(--azul-clr); color: #fff;
-}
-.btn-outline-secondary {
-  color: #46566A; border-color: #C9D3E0;
-}
-.btn-outline-secondary:hover {
-  background: var(--azul); border-color: var(--azul); color: #fff;
+.btn-decio:hover, .btn-verde:hover, .btn-azul:hover,
+.btn-primary:hover, .btn-secondary:hover, .btn-success:hover, .btn-info:hover,
+.btn-warning:hover, .btn-danger:hover, .btn-dark:hover,
+.btn-decio:focus, .btn-verde:focus, .btn-azul:focus,
+.btn-primary:focus, .btn-secondary:focus, .btn-success:focus, .btn-info:focus,
+.btn-warning:focus, .btn-danger:focus, .btn-dark:focus,
+.btn-decio:active, .btn-verde:active, .btn-azul:active,
+.btn-primary:active, .btn-secondary:active, .btn-success:active,
+.btn-info:active, .btn-warning:active, .btn-danger:active, .btn-dark:active {
+  background: var(--gradiente);
+  background-size: 160% 100%;
+  background-position: 100% 0%;   /* desliza o gradiente ao interagir */
+  border: none;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(16,71,125,.28);
+  transform: translateY(-1px);
 }
 
-/* ── Contorno com o gradiente da marca ── */
-.btn-outline-decio {
-  color: var(--azul); border: 1.5px solid var(--verde); background: #fff; font-weight: 700;
+/* ── Contornados: borda em gradiente, preenchimento ao passar o mouse ── */
+.btn-outline-decio, .btn-outline-primary, .btn-outline-secondary,
+.btn-outline-success, .btn-outline-info, .btn-outline-warning,
+.btn-outline-danger, .btn-outline-dark, .btn-outline-light {
+  background: linear-gradient(#fff, #fff) padding-box,
+              var(--gradiente) border-box;
+  border: 1.5px solid transparent;
+  color: var(--azul);
+  font-weight: 700;
+  transition: background .25s, color .2s, box-shadow .15s, transform .12s;
 }
-.btn-outline-decio:hover, .btn-outline-decio:focus {
-  background: var(--gradiente); border-color: transparent; color: #fff;
+.btn-outline-decio:hover, .btn-outline-primary:hover, .btn-outline-secondary:hover,
+.btn-outline-success:hover, .btn-outline-info:hover, .btn-outline-warning:hover,
+.btn-outline-danger:hover, .btn-outline-dark:hover, .btn-outline-light:hover,
+.btn-outline-decio:focus, .btn-outline-primary:focus, .btn-outline-secondary:focus,
+.btn-outline-success:focus, .btn-outline-info:focus, .btn-outline-warning:focus,
+.btn-outline-danger:focus, .btn-outline-dark:focus, .btn-outline-light:focus,
+.btn-outline-decio:active, .btn-outline-primary:active, .btn-outline-secondary:active,
+.btn-outline-success:active, .btn-outline-info:active, .btn-outline-warning:active,
+.btn-outline-danger:active, .btn-outline-dark:active {
+  background: var(--gradiente) border-box;
+  border: 1.5px solid transparent;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(16,71,125,.24);
+  transform: translateY(-1px);
 }
 
-/* ── Seleção (radio/checkbox estilizados como botão) ── */
-.btn-check:checked + .btn-outline-secondary,
-.btn-check:checked + .btn-outline-primary,
-.btn-check:checked + .btn-outline-info,
-.btn-check:checked + .btn-outline-warning {
-  background: var(--gradiente); border-color: transparent; color: #fff;
+/* ── Botões de escolha (radio/checkbox no formato de botão) ── */
+.btn-check:checked + .btn,
+.btn-check:active + .btn {
+  background: var(--gradiente) border-box !important;
+  border: 1.5px solid transparent !important;
+  color: #fff !important;
+  box-shadow: 0 2px 10px rgba(16,71,125,.22);
 }
-.btn-check:checked + .btn-outline-success {
-  background: var(--verde); border-color: var(--verde); color: #fff;
-}
-.btn-check:checked + .btn-outline-danger {
-  background: var(--azul); border-color: var(--azul); color: #fff;
-}
-.btn-check:focus + .btn {
-  box-shadow: 0 0 0 .18rem rgba(40,163,83,.22);
+.btn-check:focus + .btn { box-shadow: 0 0 0 .18rem rgba(40,163,83,.22); }
+
+/* ── Desabilitado ── */
+.btn:disabled, .btn.disabled {
+  background: #D8E0EC !important; color: #8B94A3 !important;
+  border-color: transparent !important; box-shadow: none; transform: none;
+  opacity: 1;
 }
 
-/* ── Links e paginação também na marca ── */
+/* ── Links, abas e marcadores também na marca ── */
 a { color: var(--azul); }
 a:hover { color: var(--verde-esc); }
-.btn-link { color: var(--azul); font-weight: 600; }
-.btn-link:hover { color: var(--verde-esc); }
+.btn-link, .btn-link.text-danger {
+  color: var(--azul) !important; font-weight: 600;
+  background: none; border: none; box-shadow: none; transform: none;
+}
+.btn-link:hover, .btn-link.text-danger:hover {
+  color: var(--verde-esc) !important; background: none;
+}
 .nav-tabs .nav-link.active { color: var(--azul); border-bottom-color: #fff; }
-.form-check-input:checked {
-  background-color: var(--verde); border-color: var(--verde);
-}
+.form-check-input:checked { background-color: var(--verde); border-color: var(--verde); }
 .form-check-input:focus { box-shadow: 0 0 0 .18rem rgba(40,163,83,.2); }
-
-/* ── Ações destrutivas: azul escuro da marca, nunca vermelho ──
-   A distinção do que não tem volta é feita pela confirmação em tela,
-   não pela cor, para o site inteiro seguir a identidade da empresa. */
-.btn-danger {
-  background: var(--azul); border-color: var(--azul); color: #fff;
-}
-.btn-danger:hover, .btn-danger:focus {
-  background: #082A4D; border-color: #082A4D; color: #fff;
-}
-.btn-outline-danger {
-  color: var(--azul); border-color: var(--azul);
-}
-.btn-outline-danger:hover, .btn-outline-danger:focus {
-  background: var(--azul); border-color: var(--azul); color: #fff;
-}
-.btn-link.text-danger, .btn-link.text-danger:hover { color: var(--azul) !important; }
-
-/* Foco visível em qualquer botão, na cor da marca */
 .btn:focus-visible { box-shadow: 0 0 0 .2rem rgba(40,163,83,.3); outline: none; }
 
+/* O botão de fechar do modal não recebe gradiente */
+.btn-close { background-color: transparent !important; box-shadow: none; transform: none; }
 
 /* ═══════════════════════════════════════════════════════════════
    RESPONSIVO — as tabelas viram cartões no celular e no tablet,
@@ -518,4 +490,23 @@ a:hover { color: var(--verde-esc); }
   .tabela-cartao td { flex-direction: column; align-items: flex-start; gap: 2px; }
   .tabela-cartao td::before { min-width: 0; }
   .cronometro { font-size: 1.9rem; }
+}
+
+
+/* Grupos de botão: preserva o arredondado com a borda em gradiente */
+.btn-group > .btn:not(:first-child),
+.btn-group > .btn-check:not(:first-child) + .btn { margin-left: -1px; }
+.btn-group > .btn:not(:last-child):not(.dropdown-toggle),
+.btn-group > .btn-check:not(:last-child) + .btn {
+  border-top-right-radius: 0; border-bottom-right-radius: 0;
+}
+.btn-group > .btn:not(:first-child),
+.btn-group > .btn-check:not(:first-child) + .btn {
+  border-top-left-radius: 0; border-bottom-left-radius: 0;
+}
+.btn-group > .btn:first-child, .btn-group > .btn-check:first-child + .btn {
+  border-top-left-radius: 9px; border-bottom-left-radius: 9px;
+}
+.btn-group > .btn:last-child, .btn-group > .btn-check:last-child + .btn {
+  border-top-right-radius: 9px; border-bottom-right-radius: 9px;
 }

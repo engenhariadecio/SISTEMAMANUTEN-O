@@ -72,7 +72,7 @@ for usuario, nome, perfil in [("charles", "Charles", "solicitante"),
                               ("maria", "Maria Geucilene", "analista")]:
     db.executar("""INSERT INTO usuarios (usuario, senha_hash, nome, perfil, email)
                    VALUES (%s,%s,%s,%s,%s) ON CONFLICT (usuario) DO UPDATE
-                   SET perfil=EXCLUDED.perfil""",
+                   SET perfil=EXCLUDED.perfil, nome=EXCLUDED.nome""",
                 (usuario, generate_password_hash("teste123"), nome, perfil,
                  f"{usuario}@intelbras.com.br"))
 
@@ -157,9 +157,10 @@ assert db.scalar("SELECT situacao FROM solicitacoes_material WHERE id=%s",
                  (sm["id"],), default="") == "Em cadastro"
 print("   ✅ mas trata e atualiza as solicitações normalmente")
 
-r = jaime.get("/solicitacoes/nova", follow_redirects=True)
-assert r.status_code == 200 and BLOQ not in r.data
-print("   ✅ o manutentor continua podendo solicitar")
+assert BLOQ in jaime.get("/solicitacoes/nova", follow_redirects=True).data
+print("   ✅ o manutentor pede peça só de dentro da OS")
+assert lid.get("/solicitacoes/nova", follow_redirects=True).status_code == 200
+print("   ✅ a liderança usa o formulário avulso para repor estoque")
 
 # ══ NLAG COMPLETO COM A ANALISTA ══════════════════════════════
 print("\n── Depósito na área da analista ──")
@@ -204,6 +205,55 @@ ana.post("/materiais/cadastro", data={"acao": "excluir", "codigo": "6996974"},
 m = db.um("SELECT ativo FROM materiais WHERE codigo='6996974'")
 assert m and m["ativo"] is False
 print("   ✅ item com histórico é desativado, não apagado — o histórico fica de pé")
+
+# ══ ENTRADA COM ETIQUETA ══════════════════════════════════════
+print("\n── Entrada com geração de etiqueta ──")
+d = ana.get("/materiais/entrada").data.decode()
+for termo in ["Bipe, digite ou use a câmera", "Quantidade de etiquetas",
+              "Imprimir na Zebra", "html5-qrcode"]:
+    assert termo in d, f"faltou na tela de entrada: {termo}"
+print("   ✅ formulário, leitor de câmera e painel de impressão")
+
+d = ana.get("/materiais/entrada?codigo=6996974").data.decode()
+assert "data:image/png;base64" in d and "NLAG · MANUTENÇÃO INDUSTRIAL" in d
+assert "DEC-Zebra003" in d
+print("   ✅ prévia da etiqueta com código de barras e orientação da impressora")
+
+antes = db.saldo_material("6996974")
+r = ana.post("/materiais/entrada",
+             data={"codigo": "6996974", "quantidade": "25", "observacao": "NF 8842"},
+             follow_redirects=True)
+d = r.data.decode()
+assert db.saldo_material("6996974") == antes + 25
+assert "Imprima a etiqueta ao lado" in d
+assert "data:image/png;base64" in d
+print(f"   ✅ entrada lançada ({antes:g} → {db.saldo_material('6996974'):g}) "
+      "e etiqueta já pronta na mesma tela")
+assert "NF 8842" in d
+print("   ✅ a movimentação aparece na lista, com botão de reimprimir")
+
+# ── A etiqueta em si ──
+r = ana.get("/materiais/print/6996974")
+assert r.status_code == 200
+et = r.data.decode()
+for termo in ["size: 100mm 50mm landscape", "padding: 7mm 3mm 2mm 13mm",
+              "NLAG · MANUTENÇÃO INDUSTRIAL", "height: 14mm", "width: 94mm",
+              "image-rendering: pixelated", "window.print()", "window.close()"]:
+    assert termo in et, f"a etiqueta perdeu: {termo}"
+assert "ABR NYLON PRETO 400MMX4,8MM" in et and "6996974" in et
+print("   ✅ etiqueta 100×50mm idêntica à do depósito NLAG, com impressão automática")
+
+assert ana.get("/materiais/print/NAOEXISTE").status_code == 404
+print("   ✅ código inexistente devolve 404 em vez de etiqueta em branco")
+
+# O mesmo formato em todos os pontos do sistema
+for rota in ["/materiais/", "/materiais/etiquetas?q=NYLON"]:
+    assert "materiais/print/" in ana.get(rota).data.decode(), f"{rota} usa outro formato"
+print("   ✅ dashboard e tela de etiquetas usam a mesma etiqueta")
+
+d = ana.get("/materiais/saida").data.decode()
+assert "html5-qrcode" in d
+print("   ✅ a saída também lê código de barras pela câmera")
 
 print("\n" + "=" * 60)
 print("✅ MIGRAÇÃO E CATÁLOGO VALIDADOS")

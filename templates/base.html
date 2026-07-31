@@ -82,13 +82,13 @@
   {{ item('mat.alertas', 'exclamation-triangle-fill', 'Alertas de estoque', 'material_ver') }}
   {% endif %}
 
-  {% if u.perfil != 'manutentor' %}
   <div class="nav-section">Solicitações</div>
-  {{ item('sol.nova', 'cart-plus-fill', 'Solicitar material', 'solicitar_material') }}
-  {{ item('sol.lista', 'card-list', 'Acompanhamento') }}
-  {% else %}
-  <div class="nav-section">Materiais</div>
+  {% if u.perfil == 'manutentor' %}
   {{ item('sol.lista', 'card-list', 'Minhas solicitações') }}
+  {% else %}
+  {{ item('sol.lista', 'card-list', 'Acompanhamento') }}
+  {# Formulário avulso: só a liderança, para repor estoque fora de uma OS #}
+  {{ item('sol.nova', 'cart-plus-fill', 'Reposição de estoque', 'solicitar_material') }}
   {% endif %}
 
   {% if pode('cadastros') %}

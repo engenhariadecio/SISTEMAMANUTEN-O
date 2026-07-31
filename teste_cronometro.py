@@ -17,7 +17,7 @@ for usuario, nome, perfil in [("charles", "Charles Pfleger", "solicitante"),
                               ("lourivaldo", "Lourivaldo Vieira", "lider")]:
     db.executar("""INSERT INTO usuarios (usuario, senha_hash, nome, perfil, email)
                    VALUES (%s,%s,%s,%s,%s) ON CONFLICT (usuario) DO UPDATE
-                   SET perfil=EXCLUDED.perfil""",
+                   SET perfil=EXCLUDED.perfil, nome=EXCLUDED.nome""",
                 (usuario, generate_password_hash("teste123"), nome, perfil,
                  f"{usuario}@intelbras.com.br"))
 
@@ -91,12 +91,29 @@ assert db.scalar("SELECT status FROM ordens_servico WHERE id=%s",
                  (o["id"],), default="") == "aguardando_peca"
 print("   ✅ sem saldo → solicitação aberta e OS pausada")
 
+# Enquanto o analista não liberar, a OS fica travada
+jaime.post(f"/os/{o['id']}/acao/retomar", follow_redirects=True)
+assert db.scalar("SELECT status FROM ordens_servico WHERE id=%s",
+                 (o["id"],), default="") == "aguardando_peca"
+print("   ✅ não retoma antes da liberação do analista")
+
+db.executar("""INSERT INTO usuarios (usuario,senha_hash,nome,perfil,email)
+               VALUES ('cr_ana',%s,'Analista Crono','analista','anacr@intelbras.com.br')
+               ON CONFLICT (usuario) DO UPDATE SET perfil='analista', nome=EXCLUDED.nome""",
+            (generate_password_hash("teste123"),))
+ana = app.test_client(); ana.post("/login", data={"usuario": "cr_ana", "senha": "teste123"})
+sm = db.um("SELECT * FROM solicitacoes_material WHERE os_id=%s ORDER BY id DESC LIMIT 1",
+           (o["id"],))
+ana.post(f"/solicitacoes/{sm['id']}/liberar",
+         data={"quantidade": "1", "entrada": "3"}, follow_redirects=True)
+print("   ✅ analista liberou a peça")
+
 tela = jaime.get(f"/os/{o['id']}").data.decode()
 assert "Retomar" in tela, "deveria haver botão de retomar"
 jaime.post(f"/os/{o['id']}/acao/retomar", follow_redirects=True)
 assert db.scalar("SELECT status FROM ordens_servico WHERE id=%s",
                  (o["id"],), default="") == "em_andamento"
-print("   ✅ retomou depois da peça")
+print("   ✅ retomou depois da peça liberada")
 
 # ── Concluir com relatório, fotos e vídeo ──
 print("\n── Conclusão ──")

@@ -44,7 +44,7 @@ for usuario, nome, perfil, mail in EQUIPE:
     db.executar("""INSERT INTO usuarios (usuario, senha_hash, nome, perfil, email)
                    VALUES (%s,%s,%s,%s,%s)
                    ON CONFLICT (usuario) DO UPDATE
-                   SET perfil=EXCLUDED.perfil, email=EXCLUDED.email""",
+                   SET perfil=EXCLUDED.perfil, nome=EXCLUDED.nome, email=EXCLUDED.email""",
                 (usuario, generate_password_hash("teste123"), nome, perfil, mail))
 
 sol = app.test_client(); sol.post("/login", data={"usuario": "charles", "senha": "teste123"})

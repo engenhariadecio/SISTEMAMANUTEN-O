@@ -317,7 +317,8 @@ def detalhe(os_id):
                            defeitos=defeitos, causas=causas, totais=totais,
                            TIPOS_TEMPO=TIPOS_TEMPO, MOTIVOS_PAUSA=MOTIVOS_PAUSA,
                            STATUS_LABEL=STATUS_LABEL,
-                           triagem_obrigatoria=triagem_obrigatoria())
+                           triagem_obrigatoria=triagem_obrigatoria(),
+                           materiais_pendentes=_materiais_pendentes(os_id))
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -452,6 +453,14 @@ def triagem():
                            STATUS_LABEL=STATUS_LABEL)
 
 
+def _materiais_pendentes(os_id):
+    """Pedidos de peça daquela OS que o analista ainda não liberou."""
+    from blueprints.solicitacoes import ATENDIDAS
+    return db.scalar("""SELECT COUNT(*) AS n FROM solicitacoes_material
+                        WHERE os_id=%s AND situacao <> ALL(%s)""",
+                     (os_id, list(ATENDIDAS)), default=0)
+
+
 def triagem_obrigatoria():
     """Quando desligada, o manutentor pode puxar uma OS ainda não distribuída."""
     return str(db.scalar("SELECT valor FROM parametros WHERE chave='triagem_obrigatoria'",
@@ -484,6 +493,13 @@ def acao(os_id, acao):
                        WHERE id=%s""", (session["uid"], os_id))
         _apontar(os_id, "atribuicao", f"{session['nome']} assumiu a OS.")
         o = db.um("SELECT * FROM ordens_servico WHERE id=%s", (os_id,))
+
+    if acao in ("iniciar", "retomar"):
+        pendentes = _materiais_pendentes(os_id)
+        if pendentes:
+            flash(f"Há {pendentes} material(is) aguardando liberação do analista. "
+                  "A OS libera assim que todos forem entregues.", "warning")
+            return redirect(url_for("os.detalhe", os_id=os_id))
 
     if acao == "iniciar":
         if not o["data_inicio"]:
@@ -681,8 +697,8 @@ def add_material(os_id):
                        VALUES (%s,%s,'Solicitado','Solicitada pelo manutentor dentro da OS.')""",
                     (sid, session["uid"]))
         _apontar(os_id, "material",
-                 f"Solicitação SM #{numero} enviada ao analista de materiais: "
-                 f"{faltante:g} de {descricao or codigo}.")
+                 f"Material requisitado ao analista: {faltante:g} de "
+                 f"{descricao or codigo} — SM #{numero}.")
 
         link_sm = url_for("sol.detalhe", sid=sid)
         db.notificar_perfis(("analista",),

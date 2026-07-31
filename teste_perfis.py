@@ -20,7 +20,7 @@ for usuario, nome, perfil in [("jaime", "Jaime Matias", "manutentor"),
                               ("maria", "Maria Geucilene", "analista"),
                               ("charles", "Charles Pfleger", "solicitante")]:
     db.executar("""INSERT INTO usuarios (usuario, senha_hash, nome, perfil)
-                   VALUES (%s,%s,%s,%s) ON CONFLICT (usuario) DO UPDATE SET perfil=EXCLUDED.perfil""",
+                   VALUES (%s,%s,%s,%s) ON CONFLICT (usuario) DO UPDATE SET perfil=EXCLUDED.perfil, nome=EXCLUDED.nome""",
                 (usuario, generate_password_hash("teste123"), nome, perfil))
 
 mnt = app.test_client(); mnt.post("/login", data={"usuario": "jaime", "senha": "teste123"})
@@ -192,10 +192,34 @@ print("   ✅ manutentor não consegue mudar a situação da solicitação")
 ana.post("/materiais/entrada", data={"codigo": "7609066", "quantidade": "20",
                                      "observacao": "Reposição"}, follow_redirects=True)
 print(f"   analista repôs → saldo {db.saldo_material('7609066'):g}")
+
+# A OS só destrava depois que o analista libera o pedido
+mnt.post(f"/os/{o['id']}/acao/retomar", follow_redirects=True)
+assert db.scalar("SELECT status FROM ordens_servico WHERE id=%s",
+                 (o["id"],), default="") == "aguardando_peca"
+print("   ✅ travada até a liberação")
+
+pend = db.query("""SELECT * FROM solicitacoes_material WHERE os_id=%s
+                   AND situacao NOT IN ('Liberado','Concluído','Recusado','Cancelado')""",
+                (o["id"],))
+for x in pend or []:
+    # Peça sem cadastro: a analista preenche a ficha antes de liberar
+    tem = x["codigo"] and db.um("SELECT id FROM materiais WHERE codigo=%s", (x["codigo"],))
+    if not tem:
+        ana.post(f"/solicitacoes/{x['id']}/cadastrar",
+                 data={"codigo": f"CAD{x['id']:04d}", "descricao": x["descricao"],
+                       "unidade": "UNI", "tipo": "NLAG"}, follow_redirects=True)
+    ana.post(f"/solicitacoes/{x['id']}/liberar",
+             data={"entrada": f"{float(x['quantidade']):g}"}, follow_redirects=True)
+restantes = db.scalar("""SELECT COUNT(*) AS n FROM solicitacoes_material WHERE os_id=%s
+                         AND situacao NOT IN ('Liberado','Concluído','Recusado','Cancelado')""",
+                      (o["id"],), default=0)
+assert restantes == 0, f"ainda restam {restantes} pedidos pendentes"
+print("   ✅ analista cadastrou o que faltava e liberou tudo")
 mnt.post(f"/os/{o['id']}/acao/retomar", follow_redirects=True)
 assert db.scalar("SELECT status FROM ordens_servico WHERE id=%s",
                  (o["id"],), default="") == "em_andamento"
-print("   ✅ manutentor retomou a OS")
+print("   ✅ manutentor retomou depois da liberação")
 
 # ══ EMERGÊNCIA ═════════════════════════════════════════════════
 print("\n── OS de emergência pelo manutentor ──")

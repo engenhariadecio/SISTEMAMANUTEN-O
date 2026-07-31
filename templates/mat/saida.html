@@ -10,8 +10,21 @@
       <div class="card-body">
         <form method="post">
           <div class="mb-3"><label class="form-label">Código do material</label>
-            <input name="codigo" id="codigo" class="form-control form-control-lg" autofocus required
-                   autocomplete="off" placeholder="Escaneie ou digite"></div>
+            <div class="input-group">
+              <span class="input-group-text bg-white"><i class="bi bi-upc-scan"></i></span>
+              <input name="codigo" id="codigo" class="form-control form-control-lg" autofocus
+                     required autocomplete="off" placeholder="Bipe, digite ou use a câmera"
+                     style="text-transform:uppercase">
+              <button type="button" class="btn btn-decio" onclick="abrirCamera()"
+                      title="Ler com a câmera"><i class="bi bi-camera-fill"></i></button>
+            </div>
+          </div>
+          <div id="camera" class="mb-3 d-none">
+            <div id="leitor" style="width:100%"></div>
+            <button type="button" class="btn btn-outline-secondary btn-sm mt-2 w-100"
+                    onclick="fecharCamera()">
+              <i class="bi bi-x-circle me-1"></i>Fechar câmera</button>
+          </div>
           <div class="mb-2" id="info"></div>
           <div class="mb-3"><label class="form-label">Quantidade</label>
             <input name="quantidade" type="number" step="0.001" min="0.001"
@@ -52,7 +65,28 @@
 </div>
 {% endblock %}
 {% block js %}
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
+let leitor = null;
+function abrirCamera() {
+  document.getElementById('camera').classList.remove('d-none');
+  leitor = new Html5Qrcode('leitor');
+  leitor.start({ facingMode: 'environment' },
+    { fps: 10, qrbox: { width: 280, height: 120 } },
+    codigo => {
+      const campo = document.getElementById('codigo');
+      campo.value = codigo.toUpperCase();
+      fecharCamera();
+      campo.dispatchEvent(new Event('blur'));
+      document.querySelector('[name=quantidade]').focus();
+    }, () => {}
+  ).catch(e => alert('Não foi possível abrir a câmera: ' + e));
+}
+function fecharCamera() {
+  if (leitor) { leitor.stop().catch(() => {}); leitor = null; }
+  document.getElementById('camera').classList.add('d-none');
+}
+
 document.getElementById('codigo').addEventListener('blur', function(){
   const c = this.value.trim(); if(!c) return;
   fetch(`{{ url_for('mat.api_material', codigo='__C__') }}`.replace('__C__', encodeURIComponent(c)))

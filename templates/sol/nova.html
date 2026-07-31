@@ -1,13 +1,19 @@
 {% extends "base.html" %}
 {% block titulo %}Solicitar material{% endblock %}
-{% block cabecalho %}Solicitação de Material{% endblock %}
+{% block cabecalho %}Reposição de Estoque{% endblock %}
 {% block titulo_mob %}Solicitar material{% endblock %}
 {% block conteudo %}
 <div class="row justify-content-center"><div class="col-lg-7">
   <form method="post">
     <div class="card">
-      <div class="card-header"><i class="bi bi-cart-plus-fill me-1"></i> Nova solicitação</div>
+      <div class="card-header"><i class="bi bi-cart-plus-fill me-1"></i>
+        Pedido de reposição</div>
       <div class="card-body">
+        <div class="alert alert-info py-2" style="font-size:.85rem">
+          <i class="bi bi-info-circle-fill me-1"></i>
+          Este formulário é para <strong>repor estoque fora de uma ordem de serviço</strong>.
+          Durante uma OS, o manutentor pede a peça pelo catálogo, dentro da própria OS.
+        </div>
         <div class="mb-3"><label class="form-label">1. Código / Nome do item</label>
           <input name="codigo" id="codigo" class="form-control" autocomplete="off"
                  value="{{ request.args.get('codigo','') }}"

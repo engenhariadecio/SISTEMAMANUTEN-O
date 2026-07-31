@@ -113,8 +113,8 @@
               <a href="{{ url_for('mat.historico', codigo=m.codigo) }}"
                  class="btn btn-sm btn-azul py-1 px-2" title="Histórico">
                 <i class="bi bi-clock-history"></i></a>
-              <a href="{{ url_for('mat.etiqueta_imprimir', codigo=m.codigo) }}" target="_blank"
-                 class="btn btn-sm btn-azul py-1 px-2" title="Etiqueta">
+              <a href="{{ url_for('mat.print_etiqueta', codigo=m.codigo) }}" target="_blank"
+                 class="btn btn-sm btn-azul py-1 px-2" title="Imprimir etiqueta 100x50mm">
                 <i class="bi bi-tag-fill"></i></a>
               {% if pode('material_cad') %}
               <a href="{{ url_for('mat.cadastro', editar=m.codigo) }}"

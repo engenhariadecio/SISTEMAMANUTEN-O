@@ -10,6 +10,8 @@ import csv
 from flask import (Blueprint, render_template, request, redirect, url_for,
                    flash, session, abort, Response)
 
+import psycopg2
+
 import db
 import mailer
 from auth import exige, pode
@@ -20,13 +22,17 @@ TIPOS = ["Estoque NLAG", "Cadastro", "Expansão", "Transferência", "HIBE/ERSA",
 
 SITUACOES = ["Solicitado", "Em cadastro", "Cadastrado", "Proc. de Compra",
              "Pedido SAP", "Aguardando Cotação", "Pendente Aprovação",
-             "Compra Aprovada", "Recebido", "Concluído", "Recusado", "Cancelado"]
+             "Compra Aprovada", "Recebido", "Liberado", "Concluído",
+             "Recusado", "Cancelado"]
+
+# Situações em que a peça já está na mão do manutentor — a OS destrava
+ATENDIDAS = ("Liberado", "Concluído", "Recusado", "Cancelado")
 
 CORES = {
     "Solicitado": "secondary", "Em cadastro": "info", "Cadastrado": "primary",
     "Proc. de Compra": "warning", "Pedido SAP": "warning",
     "Aguardando Cotação": "warning", "Pendente Aprovação": "warning",
-    "Compra Aprovada": "success", "Recebido": "success",
+    "Compra Aprovada": "success", "Recebido": "success", "Liberado": "success",
     "Concluído": "success", "Recusado": "danger", "Cancelado": "dark",
 }
 
@@ -195,8 +201,203 @@ def detalhe(sid):
     historico = db.query("""SELECT h.*, u.nome AS usuario FROM solicitacao_historico h
                             LEFT JOIN usuarios u ON u.id=h.usuario_id
                             WHERE h.solicitacao_id=%s ORDER BY h.criado_em""", (sid,))
+    mat = _material_da_solicitacao(s)
+    # Decimal do banco e float do saldo não se misturam — normaliza aqui
+    qtd = float(s["quantidade"] or 0)
+    saldo = db.saldo_material(mat["codigo"]) if mat and mat["tipo"] == "NLAG" else None
+    falta = round(max(qtd - saldo, 0), 3) if saldo is not None else 0
     return render_template("sol/detalhe.html", s=s, historico=historico,
-                           SITUACOES=SITUACOES, CORES=CORES)
+                           SITUACOES=SITUACOES, CORES=CORES, mat=mat, saldo=saldo,
+                           qtd=qtd, falta=falta,
+                           pendentes=_pendentes_da_os(s["os_id"]),
+                           ATENDIDAS=ATENDIDAS)
+
+
+# ══════════════════════════════════════════════════════════════════
+#  ATENDIMENTO DO ANALISTA
+# ══════════════════════════════════════════════════════════════════
+def _material_da_solicitacao(s):
+    """O material já cadastrado, se houver — pelo código final ou pelo informado."""
+    for cod in (s.get("codigo_final"), s.get("codigo")):
+        if cod:
+            m = db.um("SELECT * FROM materiais WHERE codigo=%s", (cod.strip().upper(),))
+            if m:
+                return m
+    return None
+
+
+@bp.route("/<int:sid>/liberar", methods=["POST"])
+@exige("tratar_solicitacao")
+def liberar(sid):
+    """Um clique: entrega a peça ao manutentor e dá baixa no NLAG."""
+    s = db.um("""SELECT sm.*, u.nome AS solicitante, o.numero AS os_numero
+                 FROM solicitacoes_material sm
+                 LEFT JOIN usuarios u ON u.id=sm.solicitante_id
+                 LEFT JOIN ordens_servico o ON o.id=sm.os_id
+                 WHERE sm.id=%s""", (sid,))
+    if not s:
+        abort(404)
+
+    mat = _material_da_solicitacao(s)
+    if not mat:
+        flash("Esta peça ainda não tem cadastro. Cadastre antes de liberar.", "warning")
+        return redirect(url_for("sol.detalhe", sid=sid))
+
+    try:
+        qtd = float(request.form.get("quantidade") or s["quantidade"])
+    except ValueError:
+        qtd = float(s["quantidade"])
+    if qtd <= 0:
+        flash("Informe a quantidade liberada.", "warning")
+        return redirect(url_for("sol.detalhe", sid=sid))
+
+    # Entrada prévia, quando o analista está recebendo a compra agora
+    try:
+        entrada = float(request.form.get("entrada") or 0)
+    except ValueError:
+        entrada = 0
+    if entrada > 0:
+        db.executar("""INSERT INTO movimentacoes (codigo, tipo, quantidade, usuario, observacao)
+                       VALUES (%s,'ENTRADA',%s,%s,%s)""",
+                    (mat["codigo"], entrada, session["nome"],
+                     f"Recebimento para a SM #{s['numero']}"))
+
+    saldo = db.saldo_material(mat["codigo"]) if mat["tipo"] == "NLAG" else None
+    if mat["tipo"] == "NLAG":
+        if saldo < qtd:
+            flash(f"Saldo insuficiente de {mat['codigo']}: há {saldo:g} "
+                  f"{mat['unidade']} e a liberação é de {qtd:g}. "
+                  "Registre a entrada antes de liberar.", "danger")
+            return redirect(url_for("sol.detalhe", sid=sid))
+        db.executar("""INSERT INTO movimentacoes
+                       (codigo, tipo, quantidade, usuario, observacao, os_id)
+                       VALUES (%s,'SAIDA',%s,%s,%s,%s)""",
+                    (mat["codigo"], qtd, session["nome"],
+                     f"Liberado na SM #{s['numero']}", s["os_id"]))
+        saldo = db.saldo_material(mat["codigo"])
+
+    db.executar("""UPDATE solicitacoes_material
+                   SET situacao='Liberado', codigo_final=COALESCE(codigo_final,%s),
+                       dt_chegada=COALESCE(dt_chegada, CURRENT_DATE), atualizado_em=NOW()
+                   WHERE id=%s""", (mat["codigo"], sid))
+    db.executar("""INSERT INTO solicitacao_historico
+                   (solicitacao_id, usuario_id, situacao, comentario)
+                   VALUES (%s,%s,'Liberado',%s)""",
+                (sid, session["uid"],
+                 f"Material liberado pelo analista: {qtd:g} {mat['unidade']} de "
+                 f"{mat['descricao']} ({mat['codigo']})."))
+
+    # Registra na OS e no consumo
+    if s["os_id"]:
+        db.executar("""INSERT INTO os_materiais
+                       (os_id, material_id, codigo, descricao, quantidade, origem,
+                        valor_unit, usuario_id, baixado)
+                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                    (s["os_id"], mat["id"], mat["codigo"], mat["descricao"], qtd,
+                     mat["tipo"], mat["valor_unit"] or 0, session["uid"],
+                     mat["tipo"] == "NLAG"))
+        db.executar("""INSERT INTO os_apontamentos (os_id, usuario_id, tipo, descricao)
+                       VALUES (%s,%s,'material',%s)""",
+                    (s["os_id"], session["uid"],
+                     f"Material liberado pelo analista: {qtd:g} {mat['unidade']} de "
+                     f"{mat['descricao']} ({mat['codigo']}) — SM #{s['numero']}."))
+
+    _avisar_liberacao(s, mat, qtd)
+    resta = _pendentes_da_os(s["os_id"]) if s["os_id"] else 0
+    msg = f"Material liberado para {s['solicitante']}."
+    if mat["tipo"] == "NLAG":
+        msg += f" Saldo restante de {mat['codigo']}: {saldo:g} {mat['unidade']}."
+    if s["os_id"]:
+        msg += (" Todos os materiais da OS foram atendidos." if resta == 0
+                else f" Ainda restam {resta} pedido(s) nesta OS.")
+    flash(msg, "success")
+    return redirect(url_for("sol.detalhe", sid=sid))
+
+
+@bp.route("/<int:sid>/cadastrar", methods=["POST"])
+@exige("material_cad")
+def cadastrar(sid):
+    """Cadastra a peça que ainda não existe e já deixa pronta para liberar."""
+    s = db.um("SELECT * FROM solicitacoes_material WHERE id=%s", (sid,))
+    if not s:
+        abort(404)
+
+    codigo = (request.form.get("codigo") or "").strip().upper()
+    descricao = (request.form.get("descricao") or "").strip()
+    if not codigo or not descricao:
+        flash("Informe o código e a descrição do material.", "warning")
+        return redirect(url_for("sol.detalhe", sid=sid))
+
+    if db.um("SELECT id FROM materiais WHERE codigo=%s", (codigo,)):
+        db.executar("UPDATE materiais SET ativo=TRUE WHERE codigo=%s", (codigo,))
+        flash(f"O código {codigo} já existia e foi reativado.", "info")
+    else:
+        imagem = None
+        f = request.files.get("imagem")
+        if f and f.filename:
+            from blueprints.materiais import _processar_imagem
+            imagem = _processar_imagem(f)
+        db.executar("""INSERT INTO materiais
+                       (codigo, descricao, unidade, tipo, aplicacao, estoque_min,
+                        estoque_max, valor_unit, localizacao, critico, imagem)
+                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                    (codigo, descricao, request.form.get("unidade", "UNI"),
+                     request.form.get("tipo", "NLAG"),
+                     request.form.get("aplicacao", "").strip() or None,
+                     request.form.get("estoque_min") or 0,
+                     request.form.get("estoque_max") or 0,
+                     request.form.get("valor_unit") or 0,
+                     request.form.get("localizacao", "").strip() or None,
+                     request.form.get("critico") == "1",
+                     psycopg2.Binary(imagem) if imagem else None))
+        flash(f"Material {codigo} cadastrado.", "success")
+
+    db.executar("""UPDATE solicitacoes_material
+                   SET codigo_final=%s, situacao='Cadastrado',
+                       dt_cadastro=COALESCE(dt_cadastro, CURRENT_DATE), atualizado_em=NOW()
+                   WHERE id=%s""", (codigo, sid))
+    db.executar("""INSERT INTO solicitacao_historico
+                   (solicitacao_id, usuario_id, situacao, comentario)
+                   VALUES (%s,%s,'Cadastrado',%s)""",
+                (sid, session["uid"],
+                 f"Material cadastrado pelo analista com o código {codigo}."))
+    db.notificar(s["solicitante_id"], f"SM #{s['numero']} — material cadastrado",
+                 f"{descricao} agora tem o código {codigo}.",
+                 url_for("sol.detalhe", sid=sid))
+    return redirect(url_for("sol.detalhe", sid=sid))
+
+
+def _pendentes_da_os(os_id):
+    """Quantos pedidos daquela OS ainda não foram atendidos pelo analista."""
+    if not os_id:
+        return 0
+    return db.scalar("""SELECT COUNT(*) AS n FROM solicitacoes_material
+                        WHERE os_id=%s AND situacao <> ALL(%s)""",
+                     (os_id, list(ATENDIDAS)), default=0)
+
+
+def _avisar_liberacao(s, mat, qtd):
+    """Notifica o manutentor de que a peça está disponível."""
+    link = url_for("os.detalhe", os_id=s["os_id"]) if s["os_id"] else \
+        url_for("sol.detalhe", sid=s["id"])
+    titulo = (f"Material liberado — OS #{s['os_numero']}" if s.get("os_numero")
+              else f"Material liberado — SM #{s['numero']}")
+    db.notificar(s["solicitante_id"], titulo,
+                 f"{qtd:g} {mat['unidade']} de {mat['descricao']} já pode ser retirado.",
+                 link)
+    mailer.avisar(
+        "material_recebido", mailer.emails_dos_usuarios([s["solicitante_id"]]),
+        assunto=f"[Manutenção] {titulo}",
+        titulo="Material liberado pelo analista",
+        subtitulo=f"SM #{s['numero']}"
+                  + (f" · OS #{s['os_numero']}" if s.get("os_numero") else ""),
+        mensagem="A peça já está disponível para retirada no almoxarifado.",
+        itens=[("Item", mat["descricao"]),
+               ("Código", mat["codigo"]),
+               ("Quantidade", f"{qtd:g} {mat['unidade']}"),
+               ("Liberado por", session["nome"]),
+               ("Data", db.agora().strftime("%d/%m/%Y às %H:%M"))],
+        botao=("Retomar a OS", mailer.url(link) + "#cronometro"))
 
 
 @bp.route("/exportar")
